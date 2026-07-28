@@ -63,6 +63,8 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);-webkit-font
 .chip{font-size:11px;font-weight:700;padding:5px 11px;border-radius:20px;white-space:nowrap}
 .chip-data{background:var(--amber-dim);color:var(--amber)}
 .chip-user{background:var(--surface2);color:var(--text2);border:1px solid var(--border2)}
+.chip-db-ok{background:var(--brand-dim);color:var(--brand-deep)}
+.chip-db-warn{background:var(--amber-dim);color:var(--amber)}
 .burger{display:none;width:34px;height:34px;border-radius:9px;border:1px solid var(--border2);background:var(--surface);cursor:pointer;font-size:15px;color:var(--text2);align-items:center;justify-content:center}
 
 .content{flex:1;overflow-y:auto;padding:24px 26px 40px}
@@ -270,6 +272,7 @@ th.sortable.on .ar{opacity:1;color:var(--brand-deep)}
         <div class="menu-lbl">Data Revenue Sharing</div>
         <div class="nav-item" data-view="upload"><span class="dot"></span>Upload &amp; Combine</div>
         <div class="nav-item" data-view="partners"><span class="dot"></span>Partner Active/Inactive</div>
+        <div class="nav-item" data-view="terminal"><span class="dot"></span>Master Terminal (RchgOps)</div>
         <div class="menu-lbl">Case Prioritas</div>
         <div class="nav-item" data-view="rs"><span class="dot"></span>Revenue Sharing</div>
         <div class="nav-item" data-view="sr"><span class="dot"></span>Sales Report SPT PPN</div>
@@ -290,7 +293,7 @@ th.sortable.on .ar{opacity:1;color:var(--brand-deep)}
           <span class="tb-title" id="tbTitle">Overview</span>
         </div>
         <div class="tb-right">
-          <span class="chip chip-data">Data: belum tersedia</span>
+          <span class="chip" id="dbChip" title="Status koneksi Supabase">DB: cek…</span>
           <span class="chip chip-user">Finance · Demo</span>
         </div>
       </div>
@@ -303,6 +306,26 @@ th.sortable.on .ar{opacity:1;color:var(--brand-deep)}
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
+/* ---------- Supabase connection (anon key; state persistence + fallback ke localStorage) ---------- */
+const SB={url:'https://vsjubakbykciictjtxvc.supabase.co',key:'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZzanViYWtieWtjaWljdGp0eHZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUyMTg5MTEsImV4cCI6MjEwMDc5NDkxMX0.mfIMj33FTgpeJGrfmDDp7VCC0Qpv3AoGGg_tBPiQkE4'};
+function sbHead(extra){return Object.assign({apikey:SB.key,Authorization:'Bearer '+SB.key,'Content-Type':'application/json'},extra||{});}
+function dbChip(txt,cls){var el=document.getElementById('dbChip');if(el){el.textContent=txt;el.className='chip '+(cls||'');}}
+async function sbPull(){
+  try{
+    const r=await fetch(SB.url+'/rest/v1/fin_state?id=eq.finance&select=data',{headers:sbHead()});
+    if(r.status===200){const j=await r.json();if(j[0]&&j[0].data){const d=j[0].data;if(d.mc)localStorage.setItem('rchg-fin-mc',JSON.stringify(d.mc));if(d.per)localStorage.setItem('rchg-fin-per',JSON.stringify(d.per));}window.__SB_OK=true;dbChip('DB: tersambung','chip-db-ok');return true;}
+    window.__SB_OK=false;dbChip('DB: tabel belum dibuat','chip-db-warn');return false;
+  }catch(e){window.__SB_OK=false;dbChip('DB: lokal (offline)','chip-db-warn');return false;}
+}
+let _sbT=null;
+function sbPush(){
+  if(window.__SB_OK!==true)return;
+  clearTimeout(_sbT);_sbT=setTimeout(function(){
+    try{const body=[{id:'finance',data:{mc:JSON.parse(localStorage.getItem('rchg-fin-mc')||'{}'),per:JSON.parse(localStorage.getItem('rchg-fin-per')||'{}')},updated_at:new Date().toISOString()}];
+      fetch(SB.url+'/rest/v1/fin_state?on_conflict=id',{method:'POST',headers:sbHead({Prefer:'resolution=merge-duplicates'}),body:JSON.stringify(body)}).catch(function(){});}catch(e){}
+  },400);
+}
+
 /* ---------- data (grounded: from analisis-bisnis 08.D / elicitation) ---------- */
 const CASES=[
  {id:'rs',no:1,name:'Revenue Sharing Report ke Partner',wf:'WF1',eff:'±2–3 hari / bulan',
@@ -339,7 +362,7 @@ const CASES=[
   pains:['Bergantung permintaan partner','Cari &amp; kirim satu per satu','Miss communication status terima'],
  },
 ];
-const TITLES={overview:'Overview',mc:'Monitoring Control',upload:'Upload & Combine Revenue Sharing',partners:'Partner Active / Inactive',sr:'Sales Report untuk SPT PPN',rs:'Revenue Sharing Report',bp:'Bukti Potong Distribution',wf:'Workflow & Proses'};
+const TITLES={overview:'Overview',mc:'Monitoring Control',upload:'Upload & Combine Revenue Sharing',partners:'Partner Active / Inactive',terminal:'Master Terminal (RchgOps)',sr:'Sales Report untuk SPT PPN',rs:'Revenue Sharing Report',bp:'Bukti Potong Distribution',wf:'Workflow & Proses'};
 
 /* ---------- Monitoring Control: work tracker for the 3 priority cases ---------- */
 const CASE_STEPS=[
@@ -369,9 +392,9 @@ const CASE_STEPS=[
  ]},
 ];
 function mcState(){try{return JSON.parse(localStorage.getItem('rchg-fin-mc')||'{}')}catch(e){return {}}}
-function mcSave(s){try{localStorage.setItem('rchg-fin-mc',JSON.stringify(s))}catch(e){}}
+function mcSave(s){try{localStorage.setItem('rchg-fin-mc',JSON.stringify(s))}catch(e){}sbPush();}
 function perState(){try{return JSON.parse(localStorage.getItem('rchg-fin-per')||'{"cur":"","arch":[],"mode":"auto"}')}catch(e){return {cur:'',arch:[],mode:'auto'}}}
-function perSave(p){try{localStorage.setItem('rchg-fin-per',JSON.stringify(p))}catch(e){}}
+function perSave(p){try{localStorage.setItem('rchg-fin-per',JSON.stringify(p))}catch(e){}sbPush();}
 function curPeriodLabel(){const d=new Date();const m=['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];return m[d.getMonth()]+' '+d.getFullYear();}
 function curDateStr(){return new Date().toLocaleDateString('id-ID',{day:'numeric',month:'short',year:'numeric'});}
 function archiveCur(p){const st=mcState();const total=CASE_STEPS.reduce((n,c)=>n+c.steps.length,0);const dn=CASE_STEPS.reduce((n,c)=>n+c.steps.filter((_,i)=>st[c.key+i]).length,0);p.arch.unshift({label:p.cur||'(tanpa nama)',done:st,total:total,doneN:dn,closedAt:curDateStr()});mcSave({});}
@@ -388,7 +411,7 @@ function openHist(i){
   });
   showModal(body);
 }
-var SORT={up:{col:null,dir:1},pt:{col:null,dir:1}};
+var SORT={up:{col:null,dir:1},pt:{col:null,dir:1},tm:{col:null,dir:1}};
 function sortRows(rows,col,dir,numeric){if(!col)return rows;return rows.slice().sort((a,b)=>{let x=a[col],y=b[col];if(numeric){x=parseFloat(String(x).replace(/[^0-9.-]/g,''))||0;y=parseFloat(String(y).replace(/[^0-9.-]/g,''))||0;}else{x=String(x).toLowerCase();y=String(y).toLowerCase();}return x<y?-dir:x>y?dir:0;});}
 function arrow(st,col){return '<span class="ar">'+(st.col===col?(st.dir>0?'▲':'▼'):'↕')+'</span>';}
 function renderMC(){
@@ -520,21 +543,7 @@ function wfHTML(){
 
 /* ---------- Upload & Combine + Partner Active/Inactive ---------- */
 /* Sample = baris NYATA dari file 202606 (contoh) sampai ada upload. */
-const SAMPLE_RS=[
- {'Partner Name':'Grand Indonesia','Start Date':'01 Jun 2026','EndDate':'30 Jun 2026','Total':6313973,'Status':'success'},
- {'Partner Name':'AEON Mall Sentul City','Start Date':'01 Jun 2026','EndDate':'30 Jun 2026','Total':5050000,'Status':'success'},
- {'Partner Name':'AEON Mall BSD City','Start Date':'01 Jun 2026','EndDate':'30 Jun 2026','Total':3961499,'Status':'success'},
- {'Partner Name':'Modern Golf & Country Club','Start Date':'01 Jun 2026','EndDate':'30 Jun 2026','Total':53708,'Status':'success'},
- {'Partner Name':'100 Panda','Start Date':'01 Jun 2026','EndDate':'30 Jun 2026','Total':6688,'Status':'success'},
- {'Partner Name':'Hersall Smoothie Baywalk M','Start Date':'01 Jun 2026','EndDate':'30 Jun 2026','Total':77373,'Status':'success'},
- {'Partner Name':'Foodhall','Start Date':'01 Jan 2025','EndDate':'30 Jun 2026','Total':37900162,'Status':'success'},
- {'Partner Name':'Interaksi Festival','Start Date':'24 Jul 2026','EndDate':'24 Jul 2026','Total':'','Status':'failed'},
- {'Partner Name':'Rendezveous 2026','Start Date':'24 Jul 2026','EndDate':'24 Jul 2026','Total':'','Status':'failed'},
- {'Partner Name':'de Asasta','Start Date':'01 Jun 2026','EndDate':'30 Jun 2026','Total':'','Status':'failed'},
- {'Partner Name':'IJL Kitchen','Start Date':'01 Jun 2026','EndDate':'30 Jun 2026','Total':'','Status':'failed'},
- {'Partner Name':'Grand Indonesia','Start Date':'01 Jun 2026','EndDate':'30 Jun 2026','Total':6313973,'Status':'success'},
-];
-function rsData(){return window.__RS_ROWS||SAMPLE_RS;}
+function rsData(){return window.__RS_ROWS||[];}
 function rsIsUploaded(){return !!window.__RS_ROWS;}
 function rsPeriod(r){return (r['Start Date']||'?')+' – '+(r['EndDate']||'?');}
 function rsStatus(r){return String(r['Status']||'').toLowerCase();}
@@ -561,13 +570,32 @@ async function rsCombine(files){
 
 /* Master Terminal compare (by Partner Name). MT dikelola Ops di RchgOps & auto-sync — finance TIDAK upload.
    window.__MT_ROWS diisi oleh integrasi RchgOps; terdaftar (terminal aktif) = Active. */
+/* RchgOps Supabase (read-only) — Master Terminal source. Anon key (public). */
+const OPS_SB={url:'https://xuuaoxekzkjgjqfpmiuk.supabase.co',key:'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh1dWFveGVremtqZ2pxZnBtaXVrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY2NTA5OTcsImV4cCI6MjA5MjIyNjk5N30.icp9I6gaX7kxNXsG-cOudxzOROxMMeJBEhmN2xhII2s'};
+async function fetchMasterTerminal(force){
+  if(window.__MT_ROWS&&!force)return window.__MT_ROWS;
+  const sel='terminal_id,terminal_name,partner_name,deployment_status,is_active,region,province,district';
+  let all=[],from=0,page=1000;
+  while(true){
+    const r=await fetch(OPS_SB.url+'/rest/v1/terminal_master?select='+sel+'&order=partner_name.asc',{headers:{apikey:OPS_SB.key,Authorization:'Bearer '+OPS_SB.key,'Range-Unit':'items','Range':from+'-'+(from+page-1)}});
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    const j=await r.json(); all=all.concat(j);
+    if(j.length<page)break; from+=page; if(from>50000)break;
+  }
+  window.__MT_ROWS=all; return all;
+}
 function norm(s){return String(s==null?'':s).toLowerCase().replace(/\s+/g,' ').trim();}
+function mtIsActiveRow(r){
+  if(r.is_active===false||String(r.is_active).toLowerCase()==='false')return false;
+  var d=String(r.deployment_status==null?'':r.deployment_status).toLowerCase().trim();
+  if(d==='')return true; // no status info → treat presence as active
+  return d==='deployed'||d==='active'||d==='aktif'||d==='1';
+}
 function mtActiveNames(mt){
   const h=Object.keys(mt[0]||{});
   const pn=h.find(k=>/partner.?name/i.test(k))||h.find(k=>/partner/i.test(k));
-  const ia=h.find(k=>/is.?active/i.test(k))||h.find(k=>/^active$/i.test(k));
   const set=new Set();
-  mt.forEach(r=>{const p=norm(r[pn]);if(!p)return;let ok=true;if(ia){const v=String(r[ia]).toLowerCase();if(['false','0','no','tidak','inactive','nonaktif'].indexOf(v)>=0)ok=false;}if(ok)set.add(p);});
+  mt.forEach(function(r){const p=norm(r[pn]);if(!p)return;if(mtIsActiveRow({is_active:r[h.find(k=>/is.?active/i.test(k))||'is_active'],deployment_status:r[h.find(k=>/deploy/i.test(k)&&/status/i.test(k))||'deployment_status']}))set.add(p);});
   return set;
 }
 function renderUpload(){
@@ -597,10 +625,10 @@ function renderUpload(){
   const th=(c,lbl,ex)=>`<th class="sortable ${SORT.up.col===c?'on':''}" data-c="${c}" ${ex||''}>${lbl}${arrow(SORT.up,c)}</th>`;
   const flabel={total:'Semua baris',success:'Success',failed:'Failed / tanpa transaksi',unik:'Partner unik (dedup)',dup:'Duplikat',off:'Di luar periode dominan'};
   document.getElementById('content').innerHTML=
-   `<div class="datanote"><b>Upload &amp; Combine.</b> Unggah file hasil download Revenue Sharing (2 batch karena batas fetch 500) → digabung, dipisah success vs failed, dan ditandai baris di luar periode dominan. ${rsIsUploaded()?'<b>Menampilkan data hasil upload.</b>':'Saat ini menampilkan <b>contoh data nyata 202606</b> (belum ada upload).'}</div>
+   `<div class="datanote"><b>Upload &amp; Combine.</b> Unggah file hasil download Revenue Sharing (2 batch karena batas fetch 500) → digabung, dipisah success vs failed, dan ditandai baris di luar periode dominan. ${rsIsUploaded()?'<b>Menampilkan data hasil upload.</b>':'<b>Belum ada data</b> — pilih file lalu klik Combine. Tidak ada data contoh/dummy.'}</div>
     <div class="uploader">
       <div class="dz"><label class="lab" for="rsFiles">＋ Pilih file (bisa 2 batch)</label><input type="file" id="rsFiles" multiple accept=".xlsx,.xls,.csv"><div class="fn" id="rsFn">.xlsx / .csv dari admin.recharge.sh</div></div>
-      <div class="dz" style="display:flex;flex-direction:column;justify-content:center;gap:10px"><button class="btn2" id="rsCombineBtn">Combine file</button><button class="btn-sm-outline" id="rsReset">Kembali ke contoh</button></div>
+      <div class="dz" style="display:flex;flex-direction:column;justify-content:center;gap:10px"><button class="btn2" id="rsCombineBtn">Combine file</button><button class="btn-sm-outline" id="rsReset">Kosongkan</button></div>
     </div>
     <div class="kpi-row" style="grid-template-columns:repeat(3,1fr)">${kpi}</div>
     <div class="sec-lbl">Preview: ${flabel[fl]} (${cur.length}) · klik kartu KPI untuk ganti · klik header untuk sort</div>
@@ -618,23 +646,24 @@ function renderPartners(){
   const rows=rsData();
   const success=rows.filter(r=>rsStatus(r)==='success');
   const uniq=[...new Set(success.map(r=>r['Partner Name']))];
+  if(!window.__MT_ROWS&&!window.__MT_FETCHING){window.__MT_FETCHING=true;fetchMasterTerminal().then(function(){window.__MT_FETCHING=false;renderPartners();}).catch(function(){window.__MT_FETCHING=false;renderPartners();});}
   const mt=window.__MT_ROWS||null;
   const names=mt?mtActiveNames(mt):null;
   let active=0,inactive=0;
   const disp=uniq.map(p=>{
     const r=success.find(x=>x['Partner Name']===p);
-    let cls='b-na',flag='menunggu sinkron MT';
+    let cls='b-na',flag=window.__MT_FETCHING?'memuat MT…':'—';
     if(names){if(names.has(norm(p))){cls='b-active';flag='Active';active++;}else{cls='b-inactive';flag='Inactive';inactive++;}}
     return {name:p,period:rsPeriod(r),flag:flag,cls:cls};
   });
   const sorted=sortRows(disp,SORT.pt.col,SORT.pt.dir,false);
   const kpi=[
     ['Partner (RS success)',uniq.length,'dari Upload & Combine',''],
-    ['Active',mt?active:'—',mt?'terdaftar di Master Terminal':'menunggu MT',mt?'var(--brand-deep)':''],
+    ['Active',mt?active:'—',mt?'terdaftar di Master Terminal':'memuat…',mt?'var(--brand-deep)':''],
     ['Inactive',mt?inactive:'—',mt?'tak terdaftar':'',mt&&inactive?'var(--red)':''],
   ].map(k=>`<div class="kpi"><div class="kpi-lbl">${k[0]}</div><div class="kpi-val" style="${k[3]?'--c:'+k[3]:''}">${k[1]}</div><div class="kpi-sub">${k[2]}</div></div>`).join('');
-  const sync=mt?`<b>Master Terminal tersinkron</b> — ${mt.length} baris dari RchgOps.`:'<b>Master Terminal belum tersambung</b> di prototipe ini — perbandingan aktif otomatis saat terhubung ke RchgOps.';
-  const note=`<div class="datanote">Menampilkan <b>seluruh partner</b> dari Upload &amp; Combine, dibandingkan dengan <b>Master Terminal</b> — dikelola Ops di RchgOps &amp; <b>disinkronkan otomatis</b> (finance tidak upload). <b>Terdaftar di Master Terminal = Active</b>; tidak terdaftar = Inactive. Cocok by Partner Name (beda ejaan bisa keliru Inactive → jaga konsistensi nama). ${sync}</div>`;
+  const sync=mt?`<b>Master Terminal tersinkron dari RchgOps</b> — ${mt.length} baris terminal.`:(window.__MT_FETCHING?'<b>Memuat Master Terminal dari RchgOps…</b>':'<b>Master Terminal belum termuat</b> — buka tab Master Terminal atau cek koneksi.');
+  const note=`<div class="datanote">Menampilkan <b>seluruh partner</b> dari Upload &amp; Combine, dibandingkan dengan <b>Master Terminal</b> — dikelola Ops di RchgOps &amp; <b>ditarik langsung dari sana</b> (finance tidak upload). <b>Terdaftar di Master Terminal = Active</b>; tidak terdaftar = Inactive. Cocok by Partner Name (beda ejaan bisa keliru Inactive → jaga konsistensi nama). ${sync}</div>`;
   const th=(c,lbl)=>`<th class="sortable ${SORT.pt.col===c?'on':''}" data-c="${c}">${lbl}${arrow(SORT.pt,c)}</th>`;
   const body=sorted.map(r=>`<tr><td><b>${r.name}</b></td><td style="font-family:var(--mono);font-size:11.5px;color:var(--text-dim)">${r.period}</td><td><span class="tagb ${r.cls}">${r.flag}</span></td></tr>`).join('');
   document.getElementById('content').innerHTML=
@@ -645,11 +674,45 @@ function renderPartners(){
   document.querySelectorAll('#content .wf-tbl th.sortable').forEach(t=>t.onclick=()=>{const c=t.dataset.c;if(SORT.pt.col===c)SORT.pt.dir*=-1;else{SORT.pt.col=c;SORT.pt.dir=1;}renderPartners();});
 }
 
+function renderTerminal(){
+  const c=document.getElementById('content');
+  if(!window.__MT_ROWS){
+    c.innerHTML='<div class="datanote">Memuat Master Terminal dari RchgOps…</div>';
+    fetchMasterTerminal().then(function(){renderTerminal();}).catch(function(e){c.innerHTML='<div class="datanote"><b>Gagal memuat Master Terminal dari RchgOps.</b> '+String(e.message||e)+' — cek koneksi internet / akses Supabase RchgOps.</div>';});
+    return;
+  }
+  const mt=window.__MT_ROWS;
+  const active=mt.filter(mtIsActiveRow).length;
+  const partners=new Set(mt.map(function(r){return norm(r.partner_name);}).filter(Boolean)).size;
+  const q=(window.__TM_Q||'').toLowerCase();
+  let flt=mt;
+  if(q)flt=mt.filter(function(r){return String(r.partner_name||'').toLowerCase().indexOf(q)>=0||String(r.terminal_name||'').toLowerCase().indexOf(q)>=0||String(r.terminal_id||'').toLowerCase().indexOf(q)>=0;});
+  const disp=flt.map(function(r){return {partner:r.partner_name||'',terminal:r.terminal_name||r.terminal_id||'',status:r.deployment_status||'',aktif:(r.is_active===false?'Tidak':'Ya'),region:r.region||r.province||''};});
+  const sorted=sortRows(disp,SORT.tm.col,SORT.tm.dir,false);
+  const kpi=[
+    ['Total terminal',mt.length,'dari RchgOps',''],
+    ['Terminal aktif',active,'deployed & is_active','var(--brand-deep)'],
+    ['Partner unik',partners,'punya terminal',''],
+  ].map(k=>`<div class="kpi"><div class="kpi-lbl">${k[0]}</div><div class="kpi-val" style="${k[3]?'--c:'+k[3]:''}">${k[1]}</div><div class="kpi-sub">${k[2]}</div></div>`).join('');
+  const th=(cc,lbl)=>`<th class="sortable ${SORT.tm.col===cc?'on':''}" data-c="${cc}">${lbl}${arrow(SORT.tm,cc)}</th>`;
+  const body=sorted.slice(0,300).map(r=>`<tr><td><b>${r.partner}</b></td><td>${r.terminal}</td><td>${r.status}</td><td>${r.aktif}</td><td>${r.region}</td></tr>`).join('');
+  c.innerHTML=
+   `<div class="datanote"><b>Master Terminal — data langsung dari RchgOps</b> (tabel <code>terminal_master</code>, read-only). Sumber penentu Partner Active/Inactive. Bukan data dummy.</div>
+    <div class="kpi-row" style="grid-template-columns:repeat(3,1fr)">${kpi}</div>
+    <div class="perbar"><span class="pl">Cari:</span><input id="tmQ" value="${(window.__TM_Q||'')}" placeholder="partner / terminal / ID"><button class="btn-sm-outline" id="tmRefresh">↻ Muat ulang</button><span class="perhint">Menampilkan ${sorted.length.toLocaleString('id-ID')} dari ${mt.length.toLocaleString('id-ID')}</span></div>
+    <div class="tw"><table class="wf-tbl"><thead><tr>${th('partner','Partner')}${th('terminal','Terminal')}${th('status','Deployment')}${th('aktif','Aktif')}${th('region','Region')}</tr></thead><tbody>${body||'<tr><td colspan=5>Tidak ada baris.</td></tr>'}</tbody></table></div>
+    ${sorted.length>300?'<p style="font-size:11px;color:var(--text-dim);margin-top:8px">Menampilkan 300 baris pertama — pakai Cari untuk mempersempit.</p>':''}`;
+  const qi=document.getElementById('tmQ');qi.oninput=function(){window.__TM_Q=this.value;var p=this.selectionStart;renderTerminal();var n=document.getElementById('tmQ');if(n){n.focus();try{n.setSelectionRange(p,p);}catch(e){}}};
+  document.getElementById('tmRefresh').onclick=function(){window.__MT_ROWS=null;renderTerminal();};
+  c.querySelectorAll('.wf-tbl th.sortable').forEach(function(t){t.onclick=function(){var cc=t.dataset.c;if(SORT.tm.col===cc)SORT.tm.dir*=-1;else{SORT.tm.col=cc;SORT.tm.dir=1;}renderTerminal();};});
+}
+
 function render(view){
   const c=document.getElementById('content');
   if(view==='overview')c.innerHTML=overviewHTML();
   else if(view==='wf')c.innerHTML=wfHTML();
   else if(view==='mc')renderMC();
+  else if(view==='terminal')renderTerminal();
   else if(view==='upload')renderUpload();
   else if(view==='partners')renderPartners();
   else{const cs=CASES.find(x=>x.id===view);c.innerHTML=caseHTML(cs);}
@@ -668,7 +731,7 @@ document.querySelectorAll('.nav-item[data-view]').forEach(n=>n.onclick=()=>go(n.
 document.getElementById('btnLogin').onclick=function(){
   document.getElementById('loginScreen').style.display='none';
   document.getElementById('app').style.display='block';
-  render('overview');
+  sbPull().then(function(){render('overview');});
 };
 document.getElementById('burger').onclick=()=>document.getElementById('sidebar').classList.toggle('open');
 document.getElementById('mclose').onclick=closeModal;
