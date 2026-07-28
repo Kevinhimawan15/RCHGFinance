@@ -1,0 +1,679 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ReCharge — Finance Dashboard</title>
+<style>
+:root{
+  --brand:#94C120; --brand-dark:#7fa81a; --brand-deep:#5a7d10; --brand-dim:rgba(148,193,32,0.12); --brand-glow:rgba(148,193,32,0.22);
+  --bg:#e9ebe5; --surface:#ffffff; --surface2:#f4f6f0; --surface3:#eef1e8;
+  --border:#ebeee6; --border2:#dde2d4;
+  --text:#19211a; --text2:#4c534b; --text-muted:#6f7669; --text-dim:#9aa295;
+  --green:#1f7a44; --amber:#B7791F; --amber-dim:rgba(183,121,31,.13);
+  --red:#C2410C; --red-dim:rgba(194,65,12,.11); --blue:#0071E3; --blue-dim:rgba(0,113,227,.10);
+  --r:16px; --r-sm:10px; --sb:238px;
+  --sh:0 1px 2px rgba(30,50,25,.04),0 18px 44px rgba(30,50,25,.08);
+  --sh-sm:0 1px 2px rgba(30,50,25,.04),0 6px 18px rgba(30,50,25,.05);
+  --font:-apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro Text","Helvetica Neue",Helvetica,Arial,sans-serif;
+  --mono:"SF Mono",ui-monospace,Menlo,Monaco,monospace;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%}
+body{background:var(--bg);color:var(--text);font-family:var(--font);-webkit-font-smoothing:antialiased;overflow:hidden}
+
+/* brand lockup */
+.brand-lock{display:flex;align-items:center;justify-content:center;gap:6px}
+.brand-word{font-size:21px;font-weight:900;letter-spacing:-.5px;color:var(--text);line-height:1}
+.bolt{width:22px;height:22px;flex-shrink:0}
+.bolt path{fill:var(--brand)}
+.brand-tag{font-size:9.5px;color:var(--brand-deep);margin-top:9px;letter-spacing:.2em;text-transform:uppercase;font-weight:800;text-align:center}
+
+/* login */
+#loginScreen{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;z-index:9999;background:linear-gradient(160deg,#fbfcf8,#eef5d8)}
+.login-card{background:var(--surface);border:1px solid var(--border2);border-radius:24px;box-shadow:var(--sh);padding:38px 34px;width:340px;text-align:center}
+.login-logo{margin-bottom:6px}
+.login-logo .brand-word{font-size:28px}.login-logo .bolt{width:30px;height:30px}
+.login-sub{font-size:11px;color:var(--text-muted);margin:14px 0 24px;line-height:1.5}
+.login-sub b{color:var(--text)}
+.btn{width:100%;border:none;border-radius:12px;padding:12px;font-size:14px;font-weight:800;cursor:pointer;font-family:var(--font);background:var(--brand);color:#fff;transition:background .13s}
+.btn:hover{background:var(--brand-dark)}
+.login-note{font-size:10.5px;color:var(--text-dim);margin-top:14px}
+
+/* app shell */
+#app{display:none;height:100vh;overflow:hidden}
+.app-inner{display:flex;height:100vh;overflow:hidden}
+#sidebar{width:var(--sb);flex-shrink:0;background:var(--surface);border:1px solid var(--border);border-radius:24px;margin:14px 0 14px 14px;box-shadow:var(--sh);display:flex;flex-direction:column;height:calc(100vh - 28px);overflow:hidden}
+.sb-brand{padding:22px 20px 6px}
+.sb-menu{flex:1;overflow-y:auto;padding:14px 12px}
+.menu-lbl{font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--text-dim);padding:12px 12px 6px}
+.nav-item{display:flex;align-items:center;gap:11px;padding:10px 12px;border-radius:11px;font-size:13.5px;font-weight:600;color:var(--text2);cursor:pointer;transition:background .12s,color .12s;user-select:none}
+.nav-item:hover{background:var(--surface2);color:var(--text)}
+.nav-item.active{background:var(--brand-dim);color:var(--brand-deep);font-weight:800}
+.nav-item .dot{width:7px;height:7px;border-radius:50%;background:currentColor;opacity:.55;flex-shrink:0}
+.nav-item.active .dot{opacity:1}
+.nav-ext{margin-top:2px;color:var(--text-muted);font-weight:600}
+.sb-foot{padding:14px 18px;border-top:1px solid var(--border);font-size:10.5px;color:var(--text-dim);line-height:1.5}
+
+#main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0;background:var(--surface);border:1px solid var(--border);border-radius:24px;margin:14px 14px 14px 12px;box-shadow:var(--sh);height:calc(100vh - 28px)}
+.topbar{flex-shrink:0;height:60px;border-bottom:1px solid var(--border);padding:0 26px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.tb-left{display:flex;align-items:center;gap:12px;min-width:0}
+.tb-title{font-size:17px;font-weight:820;letter-spacing:-.3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tb-right{display:flex;align-items:center;gap:9px;flex-shrink:0}
+.chip{font-size:11px;font-weight:700;padding:5px 11px;border-radius:20px;white-space:nowrap}
+.chip-data{background:var(--amber-dim);color:var(--amber)}
+.chip-user{background:var(--surface2);color:var(--text2);border:1px solid var(--border2)}
+.burger{display:none;width:34px;height:34px;border-radius:9px;border:1px solid var(--border2);background:var(--surface);cursor:pointer;font-size:15px;color:var(--text2);align-items:center;justify-content:center}
+
+.content{flex:1;overflow-y:auto;padding:24px 26px 40px}
+.view{display:none;animation:fade .18s ease}
+.view.active{display:block}
+@keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+.datanote{background:var(--amber-dim);border:1px solid rgba(183,121,31,.28);border-left:3px solid var(--amber);border-radius:var(--r-sm);padding:12px 15px;margin-bottom:20px;font-size:12.5px;color:var(--text2);line-height:1.55}
+.datanote b{color:var(--text)}
+
+/* kpi row */
+.kpi-row{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:22px}
+.kpi{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:15px 16px;box-shadow:var(--sh-sm)}
+.kpi-lbl{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted);margin-bottom:8px}
+.kpi-val{font-size:23px;font-weight:850;letter-spacing:-.6px;color:var(--c,var(--text));line-height:1}
+.kpi-val small{font-size:13px;font-weight:700;color:var(--text-dim)}
+.kpi-sub{font-size:10.5px;color:var(--text-dim);margin-top:4px}
+.kpi.click{cursor:pointer;transition:border-color .12s,transform .12s,box-shadow .12s}
+.kpi.click:hover{border-color:var(--brand);transform:translateY(-1px)}
+.kpi.active{border-color:var(--brand);box-shadow:0 0 0 2px var(--brand-dim)}
+
+.sec-lbl{font-size:11px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:var(--brand-deep);margin:24px 0 12px}
+.sec-lbl:first-child{margin-top:0}
+
+/* summary cards (overview) */
+.sum-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.sum{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:17px 18px;box-shadow:var(--sh-sm);cursor:pointer;transition:transform .12s,box-shadow .12s,border-color .12s}
+.sum:hover{transform:translateY(-2px);box-shadow:var(--sh);border-color:var(--brand)}
+.sum .stitle{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.sum .snum{width:22px;height:22px;border-radius:6px;background:var(--text);color:#fff;font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;font-family:var(--mono)}
+.sum h3{font-size:14px;font-weight:800;line-height:1.25}
+.sbadges{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+.sbadge{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.03em;padding:3px 8px;border-radius:6px;white-space:nowrap}
+.s-manual{background:var(--red-dim);color:var(--red)}
+.s-target{background:var(--brand-dim);color:var(--brand-deep)}
+.arrowto{color:var(--text-dim);font-weight:800;font-size:11px}
+.sum .seff{font-size:12px;color:var(--text2)}
+.sum .seff b{color:var(--text)}
+.sum .more{margin-top:12px;font-size:11.5px;font-weight:800;color:var(--brand-deep)}
+
+/* case detail */
+.wfref{font-family:var(--mono);font-size:10.5px;font-weight:800;color:var(--brand-deep);background:var(--brand-dim);padding:2px 7px;border-radius:5px}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}
+.tile{border:1px solid var(--border);border-radius:14px;padding:14px 15px;background:var(--surface);box-shadow:var(--sh-sm)}
+.tile .tv{font-size:21px;font-weight:850;letter-spacing:-.5px;color:var(--text);line-height:1.1}
+.tile .tl{font-size:11.5px;color:var(--text2);font-weight:600;margin-top:6px}
+.tile .tt{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;margin-top:8px;color:var(--text-dim)}
+.tile.nodata{border-style:dashed;border-color:var(--border2);background:var(--surface2)}
+.tile.nodata .tv{color:var(--text-dim)}.tile.nodata .tt{color:var(--red)}
+.tile.soft .tv{color:var(--amber)}.tile.soft .tt{color:var(--amber)}
+.split{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
+.blk{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:15px 17px;box-shadow:var(--sh-sm)}
+.blk h4{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted);margin-bottom:7px}
+.blk p{font-size:13px;color:var(--text2);line-height:1.55}
+.blk.target{background:var(--brand-dim);border-color:transparent}
+.blk.target h4{color:var(--brand-deep)}
+.reqpill{display:inline-block;font-family:var(--mono);font-size:10px;font-weight:800;color:var(--brand-deep);background:var(--surface);border:1px solid var(--brand);padding:1px 6px;border-radius:5px;margin-right:5px}
+.pains{display:flex;flex-wrap:wrap;gap:7px}
+.pain{font-size:11.5px;font-weight:600;color:var(--red);background:var(--red-dim);border-radius:6px;padding:4px 10px}
+.link{display:inline-block;margin-top:16px;font-size:12.5px;font-weight:700;color:var(--brand-deep);text-decoration:none}
+.link:hover{text-decoration:underline}
+
+/* workflow view */
+.wf-tbl{width:100%;border-collapse:collapse;font-size:13px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;box-shadow:var(--sh-sm)}
+.wf-tbl th{text-align:left;font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;color:var(--text-muted);padding:11px 14px;border-bottom:1.5px solid var(--border2);background:var(--surface2)}
+.wf-tbl td{padding:11px 14px;border-bottom:1px solid var(--border);color:var(--text2)}
+.wf-tbl tr:last-child td{border-bottom:none}
+.wf-tbl td b{color:var(--text)}
+.prio-badge{display:inline-block;background:var(--text);color:#fff;font-size:9.5px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;padding:2px 7px;border-radius:5px}
+
+/* flowchart */
+.flow{max-width:560px;margin:6px auto 0;display:flex;flex-direction:column;align-items:center}
+.fnode{width:100%;max-width:450px;background:var(--surface);border:1px solid var(--border2);border-radius:12px;padding:11px 15px;box-shadow:var(--sh-sm);text-align:center}
+.flabel{font-size:13px;font-weight:700;color:var(--text)}
+.fsub{font-size:11px;color:var(--text-muted);margin-top:3px;font-family:var(--mono)}
+.fwarn{margin-top:7px;font-size:11px;color:var(--red);font-weight:600;background:var(--red-dim);border-radius:6px;padding:3px 9px;display:inline-block}
+.farrow{color:var(--text-dim);font-size:16px;line-height:1;margin:3px 0}
+.f-start,.f-end{border-radius:999px;background:var(--brand-dim);border-color:transparent}
+.f-start .flabel,.f-end .flabel{color:var(--brand-deep)}
+.f-dec{background:linear-gradient(#fff,#f2f6e6);border-color:var(--brand)}
+.f-dec .flabel::before{content:"\2756  ";color:var(--brand-deep);font-weight:800}
+.fbranch{display:flex;gap:14px;width:100%;max-width:520px;justify-content:center}
+.fbcol{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px}
+.fbcol .fnode{padding:10px 12px}
+.fblabel{font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;color:var(--blue)}
+.fbar{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px}
+.flowbtn{border:1px solid var(--border2);background:var(--surface);border-radius:20px;padding:7px 14px;font-size:12.5px;font-weight:700;color:var(--text2);cursor:pointer;font-family:var(--font)}
+.flowbtn:hover{border-color:var(--brand)}
+.flowbtn.active{background:var(--text);color:#fff;border-color:var(--text)}
+/* monitoring control */
+.btn-sm-outline{border:1px solid var(--border2);background:var(--surface);color:var(--text2);border-radius:9px;padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer;font-family:var(--font)}
+.btn-sm-outline:hover{border-color:var(--brand);color:var(--brand-deep)}
+.mc-actions{display:flex;justify-content:flex-end;margin:14px 0}
+.mc-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px}
+.mc-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--sh-sm);overflow:hidden}
+.mc-head{display:flex;align-items:center;gap:10px;padding:12px 15px;background:var(--surface2);border-bottom:1px solid var(--border)}
+.mc-head h3{font-size:12.5px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--text)}
+.mc-count{margin-left:auto;font-size:10.5px;font-weight:800;padding:3px 10px;border-radius:20px;background:var(--amber-dim);color:var(--amber);white-space:nowrap}
+.mc-count.done{background:var(--brand-dim);color:var(--brand-deep)}
+.mc-rows{padding:8px}
+.mc-row{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:9px;cursor:pointer;font-size:13px}
+.mc-row:hover{background:var(--surface2)}
+.mc-check{width:18px;height:18px;border-radius:5px;border:1.5px solid var(--border2);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:11px;color:#fff;font-weight:800}
+.mc-row.done .mc-check{background:var(--brand);border-color:var(--brand)}
+.mc-name{color:var(--text2);font-weight:600}
+.mc-row.done .mc-name{color:var(--text-dim);text-decoration:line-through}
+.mc-due{margin-left:auto;font-size:10.5px;color:var(--text-dim);font-family:var(--mono);white-space:nowrap;padding-left:8px}
+.mc-prio{font-size:8.5px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;padding:1px 5px;border-radius:4px;background:var(--text);color:#fff;vertical-align:middle}
+/* upload & partners */
+.btn2{border:none;border-radius:10px;padding:9px 18px;font-size:13px;font-weight:800;background:var(--brand);color:#fff;cursor:pointer;font-family:var(--font)}
+.btn2:hover{background:var(--brand-dark)}
+.uploader{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px}
+.dz{border:1.5px dashed var(--border2);border-radius:12px;padding:20px 16px;text-align:center;background:var(--surface2)}
+.dz .lab{font-size:13px;font-weight:800;color:var(--brand-deep);cursor:pointer}
+.dz .fn{font-size:11px;color:var(--text-muted);margin-top:8px;font-family:var(--mono);word-break:break-all}
+.dz input{display:none}
+.plist{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--sh-sm);max-height:440px;overflow:auto}
+.flagrow{display:flex;align-items:center;gap:10px;padding:9px 13px;border-bottom:1px solid var(--border);font-size:13px}
+.flagrow:last-child{border-bottom:none}
+.flagrow .pn{font-weight:600;color:var(--text)}
+.flagrow .pm{color:var(--text-dim);font-family:var(--mono);font-size:11px}
+.flagrow .b{margin-left:auto;font-size:10px;font-weight:800;padding:2px 9px;border-radius:20px;white-space:nowrap}
+.b-active{background:var(--brand-dim);color:var(--brand-deep)}
+.b-inactive{background:var(--red-dim);color:var(--red)}
+.b-na{background:var(--surface2);color:var(--text-dim);border:1px solid var(--border)}
+/* period + history + sortable + modal */
+.perbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:11px 14px;margin-bottom:16px}
+.perbar .pl{font-size:12px;font-weight:700;color:var(--text-muted)}
+.perbar input{border:1px solid var(--border2);border-radius:8px;padding:7px 11px;font-size:13px;font-weight:700;font-family:var(--font);color:var(--text);background:var(--surface);width:150px}
+.perlabel{font-weight:800;color:var(--brand-deep);background:var(--brand-dim);padding:6px 12px;border-radius:8px;font-size:13px}
+.segmented{display:inline-flex;border:1px solid var(--border2);border-radius:8px;overflow:hidden}
+.seg{border:none;background:var(--surface);padding:7px 13px;font-size:12px;font-weight:700;color:var(--text2);cursor:pointer;font-family:var(--font)}
+.seg.on{background:var(--text);color:#fff}
+.perhint{font-size:11px;color:var(--text-dim)}
+.hist-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 16px;box-shadow:var(--sh-sm);cursor:pointer;transition:transform .12s,border-color .12s}
+.hist-card:hover{transform:translateY(-2px);border-color:var(--brand)}
+.hc-top{display:flex;justify-content:space-between;align-items:center;font-size:14px}
+.hc-top b{font-weight:800}
+.hc-top span{font-family:var(--mono);font-weight:700;color:var(--brand-deep)}
+.hc-sub{font-size:11px;color:var(--text-dim);margin-top:4px}
+.hc-more{font-size:11.5px;font-weight:800;color:var(--brand-deep);margin-top:10px}
+.mc-link{cursor:pointer}
+.mc-link:hover{color:var(--brand-deep);text-decoration:underline}
+.tagb{font-size:10px;font-weight:800;padding:2px 9px;border-radius:20px;white-space:nowrap}
+th.sortable{cursor:pointer;user-select:none}
+th.sortable:hover{color:var(--brand-deep)}
+th.sortable .ar{font-size:9px;opacity:.45;margin-left:3px}
+th.sortable.on .ar{opacity:1;color:var(--brand-deep)}
+.modal{position:fixed;inset:0;background:rgba(20,27,20,.42);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);display:none;align-items:flex-start;justify-content:center;padding:6vh 20px;z-index:200;overflow-y:auto}
+.modal.open{display:flex}
+.mpanel{background:var(--surface);border:1px solid var(--border2);border-radius:16px;max-width:560px;width:100%;box-shadow:0 24px 64px rgba(20,30,20,.3);padding:22px 24px;position:relative}
+.mclose{position:absolute;top:14px;right:14px;width:30px;height:30px;border-radius:8px;border:1px solid var(--border2);background:var(--surface2);cursor:pointer;color:var(--text-muted);font-size:14px}
+.hcase{margin-top:14px}
+.hcase h4{font-size:13px;font-weight:800;margin-bottom:5px}
+.hstep{display:flex;align-items:center;gap:9px;font-size:12.5px;padding:5px 0;color:var(--text2);line-height:1.4}
+.hstep .ck{width:16px;height:16px;border-radius:4px;border:1.5px solid var(--border2);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:10px;color:#fff;font-weight:800}
+.hstep.done .ck{background:var(--brand);border-color:var(--brand)}
+.hstep.done{color:var(--text-dim);text-decoration:line-through}
+@media(max-width:900px){
+  .kpi-row{grid-template-columns:repeat(2,1fr)}
+  .sum-grid{grid-template-columns:1fr}
+  .kpis{grid-template-columns:repeat(2,1fr)}
+  .split{grid-template-columns:1fr}
+  #sidebar{position:fixed;top:0;left:-110%;height:100vh;z-index:100;margin:0;border-radius:0;transition:left .25s ease}
+  #sidebar.open{left:0}
+  #main{margin:0;border-radius:0;border:none;height:100vh}
+  .burger{display:flex}
+}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="loginScreen">
+  <div class="login-card">
+    <div class="login-logo brand-lock">
+      <span class="brand-word">RE</span>
+      <svg class="bolt" viewBox="0 0 24 24"><path d="M13 2 4 14h6l-1 8 9-12h-6z"/></svg>
+      <span class="brand-word">CHARGE</span>
+    </div>
+    <div class="brand-tag">Finance</div>
+    <p class="login-sub">Finance Dashboard — <b>prototipe (v0)</b>.<br>Scope: 3 proses prioritas.</p>
+    <button class="btn" id="btnLogin">Masuk sebagai Finance</button>
+    <p class="login-note">Demo gate · belum terhubung ke sistem/akun</p>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <div class="app-inner">
+    <!-- SIDEBAR -->
+    <nav id="sidebar">
+      <div class="sb-brand">
+        <div class="brand-lock">
+          <span class="brand-word" style="font-size:19px">RE</span>
+          <svg class="bolt" viewBox="0 0 24 24" style="width:19px;height:19px"><path d="M13 2 4 14h6l-1 8 9-12h-6z"/></svg>
+          <span class="brand-word" style="font-size:19px">CHARGE</span>
+        </div>
+        <div class="brand-tag">Finance Dashboard</div>
+      </div>
+      <div class="sb-menu">
+        <div class="menu-lbl">Menu</div>
+        <div class="nav-item active" data-view="overview"><span class="dot"></span>Overview</div>
+        <div class="nav-item" data-view="mc"><span class="dot"></span>Monitoring Control</div>
+        <div class="menu-lbl">Data Revenue Sharing</div>
+        <div class="nav-item" data-view="upload"><span class="dot"></span>Upload &amp; Combine</div>
+        <div class="nav-item" data-view="partners"><span class="dot"></span>Partner Active/Inactive</div>
+        <div class="menu-lbl">Case Prioritas</div>
+        <div class="nav-item" data-view="rs"><span class="dot"></span>Revenue Sharing</div>
+        <div class="nav-item" data-view="sr"><span class="dot"></span>Sales Report SPT PPN</div>
+        <div class="nav-item" data-view="bp"><span class="dot"></span>Bukti Potong</div>
+        <div class="menu-lbl">Referensi</div>
+        <div class="nav-item" data-view="wf"><span class="dot"></span>Workflow &amp; Proses</div>
+        <a class="nav-item nav-ext" href="analisis-bisnis.html" target="_blank"><span class="dot"></span>Analisis Bisnis ↗</a>
+        <a class="nav-item nav-ext" href="panduan-elisitasi.html" target="_blank"><span class="dot"></span>Panduan Elisitasi ↗</a>
+      </div>
+      <div class="sb-foot">Data-grounded · metrik kosong menunggu data nyata. v0 · scope 3 case.</div>
+    </nav>
+
+    <!-- MAIN -->
+    <div id="main">
+      <div class="topbar">
+        <div class="tb-left">
+          <button class="burger" id="burger">☰</button>
+          <span class="tb-title" id="tbTitle">Overview</span>
+        </div>
+        <div class="tb-right">
+          <span class="chip chip-data">Data: belum tersedia</span>
+          <span class="chip chip-user">Finance · Demo</span>
+        </div>
+      </div>
+      <div class="content" id="content"></div>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="modal"><div class="mpanel"><button class="mclose" id="mclose">✕</button><div id="mbody"></div></div></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+/* ---------- data (grounded: from analisis-bisnis 08.D / elicitation) ---------- */
+const CASES=[
+ {id:'rs',no:1,name:'Revenue Sharing Report ke Partner',wf:'WF1',eff:'±2–3 hari / bulan',
+  kpis:[
+    {v:'±2–3 hari',l:'Waktu penyelesaian / bulan',tag:'disebut tim · belum diukur',cls:'soft'},
+    {v:'—',l:'Partner aktif vs total',tag:'belum ada data',cls:'nodata'},
+    {v:'—',l:'Laporan terkirim / periode',tag:'belum ada data',cls:'nodata'},
+    {v:'—',l:'Error (partner terlewat / salah kirim)',tag:'belum ada data',cls:'nodata'},
+  ],
+  asis:'Download data dari Dashboard Recharge (menu Revenue Sharing). Karena batas fetch 500 baris, unduh dalam ≥2 batch (mis. A–M &amp; N–Z) lalu digabung. Pilih partner aktif secara manual (belum ada flag Active/Inactive) untuk periode yang benar → generate &amp; kirim report. Report Director Sign disusun manual via template Word.',
+  target:[['R-RS1','Pemilihan partner aktif otomatis dari master data (flag Active/Inactive).'],['R-RS2','Auto-generate draft RS report &amp; Berita Acara sesuai template, siap Director Signing.']],
+  pains:['Batas fetch 500 baris → unduh ≥2 batch','Belum ada flag Active/Inactive → seleksi manual','Risiko partner aktif terlewat','Draft Word satu per satu'],
+ },
+ {id:'sr',no:2,name:'Sales Report untuk SPT PPN',wf:'terkait WF6',eff:'±½ hari / bulan',
+  kpis:[
+    {v:'±½ hari',l:'Waktu penyusunan / bulan',tag:'disebut tim · belum diukur',cls:'soft'},
+    {v:'—',l:'Transaksi diproses / bulan',tag:'belum ada data',cls:'nodata'},
+    {v:'—',l:'Gross Sales / DPP / VAT (periode)',tag:'belum ada data',cls:'nodata'},
+    {v:'—',l:'Frekuensi human error (merge)',tag:'belum ada data',cls:'nodata'},
+  ],
+  asis:'Export transaksi status Expired / Wipe / Return dari Dashboard → merge 3 dataset → cleaning &amp; validasi → grouping per kategori revenue. Manual di Excel.',
+  target:[['R-SR1','Sistem menghasilkan Sales Report SPT PPN otomatis (klasifikasi kategori + Gross Sales/DPP/VAT), format setara VAT Recon.']],
+  pains:['Export &amp; merge manual','Makan waktu tiap awal bulan','Potensi human error saat merge'],
+ },
+ {id:'bp',no:3,name:'Tax Slip / Bukti Potong Distribution',wf:'WF11',eff:'manual · on-request',
+  kpis:[
+    {v:'—',l:'Bukti potong terbit / masa pajak',tag:'belum ada data',cls:'nodata'},
+    {v:'—',l:'Terkirim (Sent)',tag:'belum ada data',cls:'nodata'},
+    {v:'—',l:'Gagal (Failed)',tag:'belum ada data',cls:'nodata'},
+    {v:'—',l:'Pending / diminta partner',tag:'belum ada data',cls:'nodata'},
+  ],
+  asis:'Finance membuat Bukti Potong setelah pemotongan pajak → disimpan manual → dikirim via email hanya bila partner meminta (cari file per masa pajak).',
+  target:[['R-BP1','Distribusi Bukti Potong otomatis ke email partner terdaftar setelah terbit, dengan log status Sent/Failed untuk monitoring &amp; audit.']],
+  pains:['Bergantung permintaan partner','Cari &amp; kirim satu per satu','Miss communication status terima'],
+ },
+];
+const TITLES={overview:'Overview',mc:'Monitoring Control',upload:'Upload & Combine Revenue Sharing',partners:'Partner Active / Inactive',sr:'Sales Report untuk SPT PPN',rs:'Revenue Sharing Report',bp:'Bukti Potong Distribution',wf:'Workflow & Proses'};
+
+/* ---------- Monitoring Control: work tracker for the 3 priority cases ---------- */
+const CASE_STEPS=[
+ {key:'rs',name:'Revenue Sharing Report ke Partner',steps:[
+   'Download data revenue sharing — batch 1 (mis. A–M)',
+   'Download data revenue sharing — batch 2 (mis. N–Z)',
+   'Gabung batch jadi 1 master',
+   'Seleksi partner Active (manual — belum ada flag)',
+   'Pilih partner aktif + periode yang benar',
+   'Generate & kirim Revenue Sharing report ke partner',
+   'Report / Berita Acara → Director Signing → kirim (bila diminta)',
+ ]},
+ {key:'sr',name:'Sales Report untuk SPT PPN',steps:[
+   'Export transaksi Expired / Wipe / Return dari Dashboard',
+   'Gabung 3 dataset jadi 1 master',
+   'Cleaning & validasi data',
+   'Grouping per kategori revenue (Top Up, Package, Penalty PB Loss, Other Income)',
+   'Hitung Gross Sales / DPP / VAT',
+   'Susun report format VAT Recon untuk SPT PPN',
+ ]},
+ {key:'bp',name:'Tax Slip / Bukti Potong Distribution',steps:[
+   'Buat Bukti Potong setelah pemotongan pajak',
+   'Simpan Bukti Potong (arsip)',
+   'Cek permintaan partner (per masa pajak)',
+   'Cari file Bukti Potong terkait',
+   'Kirim ke email partner',
+ ]},
+];
+function mcState(){try{return JSON.parse(localStorage.getItem('rchg-fin-mc')||'{}')}catch(e){return {}}}
+function mcSave(s){try{localStorage.setItem('rchg-fin-mc',JSON.stringify(s))}catch(e){}}
+function perState(){try{return JSON.parse(localStorage.getItem('rchg-fin-per')||'{"cur":"","arch":[],"mode":"auto"}')}catch(e){return {cur:'',arch:[],mode:'auto'}}}
+function perSave(p){try{localStorage.setItem('rchg-fin-per',JSON.stringify(p))}catch(e){}}
+function curPeriodLabel(){const d=new Date();const m=['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];return m[d.getMonth()]+' '+d.getFullYear();}
+function curDateStr(){return new Date().toLocaleDateString('id-ID',{day:'numeric',month:'short',year:'numeric'});}
+function archiveCur(p){const st=mcState();const total=CASE_STEPS.reduce((n,c)=>n+c.steps.length,0);const dn=CASE_STEPS.reduce((n,c)=>n+c.steps.filter((_,i)=>st[c.key+i]).length,0);p.arch.unshift({label:p.cur||'(tanpa nama)',done:st,total:total,doneN:dn,closedAt:curDateStr()});mcSave({});}
+function syncPeriod(){const p=perState();if(!p.mode)p.mode='auto';const now=curPeriodLabel();if(!p.cur){p.cur=now;perSave(p);return p;}if(p.cur!==now&&p.mode==='auto'){archiveCur(p);p.cur=now;perSave(p);}return p;}
+function showModal(html){document.getElementById('mbody').innerHTML=html;document.getElementById('modal').classList.add('open');}
+function closeModal(){document.getElementById('modal').classList.remove('open');}
+function openHist(i){
+  const a=perState().arch[i]; if(!a)return;
+  let body='<div style="font-family:var(--mono);font-size:11px;color:var(--brand-deep);font-weight:800">RIWAYAT PERIODE</div><h3 style="font-size:19px;font-weight:850;margin:2px 0">Periode '+a.label+'</h3><div style="font-size:12px;color:var(--text-muted);margin-bottom:6px">Ditutup '+a.closedAt+' · '+a.doneN+'/'+a.total+' langkah selesai</div>';
+  CASE_STEPS.forEach(c=>{
+    body+='<div class="hcase"><h4>'+c.name+'</h4>';
+    c.steps.forEach((st,idx)=>{const d=a.done&&a.done[c.key+idx];body+='<div class="hstep '+(d?'done':'')+'"><span class="ck">'+(d?'✓':'')+'</span>'+st+'</div>';});
+    body+='</div>';
+  });
+  showModal(body);
+}
+var SORT={up:{col:null,dir:1},pt:{col:null,dir:1}};
+function sortRows(rows,col,dir,numeric){if(!col)return rows;return rows.slice().sort((a,b)=>{let x=a[col],y=b[col];if(numeric){x=parseFloat(String(x).replace(/[^0-9.-]/g,''))||0;y=parseFloat(String(y).replace(/[^0-9.-]/g,''))||0;}else{x=String(x).toLowerCase();y=String(y).toLowerCase();}return x<y?-dir:x>y?dir:0;});}
+function arrow(st,col){return '<span class="ar">'+(st.col===col?(st.dir>0?'▲':'▼'):'↕')+'</span>';}
+function renderMC(){
+  const s=mcState(); const per=syncPeriod();
+  const allSteps=CASE_STEPS.reduce((n,c)=>n+c.steps.length,0);
+  const done=CASE_STEPS.reduce((n,c)=>n+c.steps.filter((_,i)=>s[c.key+i]).length,0);
+  const caseDone=CASE_STEPS.filter(c=>c.steps.every((_,i)=>s[c.key+i])).length;
+  const kpi=[
+    ['Case prioritas',3,'scope dashboard',''],
+    ['Langkah selesai',done+'<small> / '+allSteps+'</small>','ditandai periode ini','var(--brand-deep)'],
+    ['Langkah belum',allSteps-done,'perlu dikerjakan',(allSteps-done)?'var(--red)':'var(--brand-deep)'],
+    ['Case tuntas',caseDone+'<small> / 3</small>','semua langkah selesai',caseDone===3?'var(--brand-deep)':''],
+  ].map(k=>`<div class="kpi"><div class="kpi-lbl">${k[0]}</div><div class="kpi-val" style="${k[3]?'--c:'+k[3]:''}">${k[1]}</div><div class="kpi-sub">${k[2]}</div></div>`).join('');
+  const cards=CASE_STEPS.map((c,ci)=>{
+    const belum=c.steps.filter((_,i)=>!s[c.key+i]).length;
+    const rows=c.steps.map((st,i)=>{const k=c.key+i;return `<div class="mc-row ${s[k]?'done':''}" data-k="${k}"><span class="mc-check">${s[k]?'✓':''}</span><span class="mc-name">${st}</span></div>`;}).join('');
+    return `<div class="mc-card"><div class="mc-head"><span class="snum">${ci+1}</span><h3 class="mc-link" data-go="${c.key}" title="Buka detail case">${c.name}</h3><span class="mc-count ${belum===0?'done':''}">${belum===0?'tuntas':belum+' belum'} / ${c.steps.length}</span></div><div class="mc-rows">${rows}</div></div>`;
+  }).join('');
+  const hist=per.arch.map((a,i)=>`<div class="hist-card" data-i="${i}"><div class="hc-top"><b>${a.label}</b><span>${a.doneN}/${a.total}</span></div><div class="hc-sub">Ditutup ${a.closedAt}</div><div class="hc-more">Lihat checklist →</div></div>`).join('')||'<div style="font-size:12.5px;color:var(--text-dim)">Belum ada periode yang ditutup.</div>';
+  document.getElementById('content').innerHTML=
+    `<div class="datanote"><b>Kontrol pekerjaan 3 case prioritas.</b> Tandai langkah yang sudah dikerjakan periode ini — status tersimpan di browser. Tutup periode untuk mengarsipkan checklist ke Riwayat lalu reset. Default semua "belum" (tidak ada status yang diasumsikan). Klik nama case untuk buka detailnya.</div>
+     <div class="perbar"><span class="pl">Periode berjalan:</span><span class="perlabel">${per.cur}</span><span class="pl" style="margin-left:14px">Mode:</span><span class="segmented"><button class="seg ${per.mode==='auto'?'on':''}" data-mode="auto">Otomatis</button><button class="seg ${per.mode==='manual'?'on':''}" data-mode="manual">Manual</button></span>${per.mode==='manual'?'<button class="btn2" id="perClose">Tutup &amp; Arsipkan</button>':'<span class="perhint">↻ Tutup otomatis saat ganti bulan</span>'}</div>
+     <div class="kpi-row" style="grid-template-columns:repeat(4,1fr)">${kpi}</div>
+     <div class="mc-actions"><button class="btn-sm-outline" id="mcReset">Reset checklist</button></div>
+     <div class="mc-grid" style="grid-template-columns:repeat(auto-fit,minmax(320px,1fr))">${cards}</div>
+     <div class="sec-lbl">Riwayat Periode</div>
+     <div class="mc-grid" style="grid-template-columns:repeat(auto-fit,minmax(240px,1fr))">${hist}</div>`;
+  document.querySelectorAll('#content .mc-row').forEach(r=>r.onclick=()=>{const st=mcState();const k=r.dataset.k;if(st[k])delete st[k];else st[k]=1;mcSave(st);renderMC();});
+  document.getElementById('mcReset').onclick=()=>{mcSave({});renderMC();};
+  document.querySelectorAll('#content .mc-link').forEach(h=>h.onclick=()=>go(h.dataset.go));
+  document.querySelectorAll('#content .hist-card').forEach(hc=>hc.onclick=()=>openHist(+hc.dataset.i));
+  document.querySelectorAll('#content .seg').forEach(b=>b.onclick=()=>{const p=perState();p.mode=b.dataset.mode;perSave(p);renderMC();});
+  const pc=document.getElementById('perClose'); if(pc)pc.onclick=()=>{const p=perState();archiveCur(p);p.cur=curPeriodLabel();perSave(p);renderMC();};
+}
+/* flow renderer + per-case flows (grounded in each case's As-Is) */
+function fnodeHTML(n){const cls=n.kind==='start'?'f-start':n.kind==='end'?'f-end':n.kind==='dec'?'f-dec':'';const wf=n.wf?`<span class="wfref">${n.wf}</span> `:'';const sub=n.sub?`<div class="fsub">${n.sub}</div>`:'';const warn=n.warn?`<div class="fwarn">⚠ ${n.warn}</div>`:'';return `<div class="fnode ${cls}">${wf}<span class="flabel">${n.label}</span>${sub}${warn}</div>`;}
+function flowRender(nodes){let h='';nodes.forEach((n,i)=>{if(i>0)h+='<div class="farrow">↓</div>';if(n.branch)h+=`<div class="fbranch"><div class="fbcol"><div class="fblabel">${n.branch.ya.lbl}</div>${fnodeHTML(n.branch.ya)}</div><div class="fbcol"><div class="fblabel">${n.branch.tidak.lbl}</div>${fnodeHTML(n.branch.tidak)}</div></div>`;else h+=fnodeHTML(n);});return `<div class="flow">${h}</div>`;}
+const FLOWS={
+ sr:[
+   {kind:'start',label:'Buka Dashboard Recharge → Transaction'},
+   {kind:'proc',label:'Export transaksi status Expired / Wipe / Return'},
+   {kind:'proc',label:'Gabung 3 dataset jadi 1 master',warn:'Export / merge / hitung manual di Excel → potensi human error'},
+   {kind:'proc',label:'Cleaning & validasi data'},
+   {kind:'proc',label:'Grouping per kategori revenue',sub:'Top Up · Package · Penalty PB Loss · Other Income'},
+   {kind:'proc',label:'Hitung Gross Sales / DPP / VAT'},
+   {kind:'end',label:'Susun report format VAT Recon → SPT PPN'},
+ ],
+ rs:[
+   {kind:'start',label:'Buka Dashboard Recharge → Revenue Sharing',sub:'admin.recharge.sh/dashboard/transaction/revenue-sharing'},
+   {kind:'proc',label:'Download data revenue sharing',warn:'Batas fetch 500 baris → unduh ≥2 batch (mis. A–M, N–Z)'},
+   {kind:'proc',label:'Gabung batch jadi 1 master',sub:'Partner · Start/End Date · Total Revenue/VAT/Tax · Status'},
+   {kind:'dec',label:'Seleksi partner Active',warn:'Belum ada flag Active/Inactive → dipilih manual'},
+   {kind:'proc',label:'Pilih partner aktif + periode yang benar'},
+   {kind:'proc',wf:'WF1',label:'Generate & kirim Revenue Sharing report ke partner'},
+   {kind:'dec',label:'Butuh dokumen di-sign?'},
+   {branch:{ya:{lbl:'Ya',label:'Report / Berita Acara → Director Signing → dikirim ke partner oleh mba Evi'},tidak:{lbl:'Tidak',label:'Selesai — cukup report dari dashboard'}}},
+   {kind:'end',wf:'WF2',label:'Lanjut: Bill Import Revenue Sharing ke Zoho'},
+ ],
+ bp:[
+   {kind:'start',label:'Bukti Potong terbit (setelah pemotongan pajak)'},
+   {kind:'proc',label:'Simpan Bukti Potong (arsip manual)'},
+   {kind:'dec',label:'Partner meminta Bukti Potong?'},
+   {branch:{ya:{lbl:'Ya',label:'Cari file per masa pajak → kirim via email'},tidak:{lbl:'Tidak',label:'Tidak dikirim (menunggu permintaan)',warn:'Risiko partner tidak menerima / miss'}}},
+   {kind:'end',label:'Selesai (on-request)'},
+ ],
+};
+
+function badges(){return '<span class="sbadge s-manual">Manual</span><span class="arrowto">→</span><span class="sbadge s-target">Target: Otomatis</span>';}
+
+function overviewHTML(){
+  const kpis=[
+    ['Proses prioritas','3','',''],
+    ['Status otomatisasi','Manual','semua case','var(--red)'],
+    ['Metrik terisi','0<small> / KPI</small>','menunggu data',''],
+    ['Aktivitas terdokumentasi','26','As-Is (konteks)',''],
+    ['Sumber data','EL','elisitasi tim finance','var(--brand-deep)'],
+  ].map(k=>`<div class="kpi"><div class="kpi-lbl">${k[0]}</div><div class="kpi-val" style="${k[3]?'--c:'+k[3]:''}">${k[1]}</div><div class="kpi-sub">${k[2]}</div></div>`).join('');
+  const cards=CASES.map(c=>`<div class="sum" data-go="${c.id}">
+      <div class="stitle"><span class="snum">${c.no}</span><h3>${c.name}</h3></div>
+      <div class="sbadges">${badges()} <span class="wfref">${c.wf}</span></div>
+      <div class="seff">Effort disebut tim: <b>${c.eff}</b></div>
+      <div class="more">Lihat detail →</div>
+    </div>`).join('');
+  return `<div class="datanote"><b>Prinsip data-grounded.</b> KPI bertanda <b>"belum ada data"</b> menunggu ekstraksi data sistem (Zoho / Dashboard Recharge). Nilai waktu (±½ / 2–3 hari) = yang <b>disebut tim, belum diukur</b>. Status "Manual" = As-Is terkonfirmasi dari elisitasi. Tidak ada angka transaksi yang diasumsikan.</div>
+    <div class="kpi-row">${kpis}</div>
+    <div class="sec-lbl">3 Case Prioritas</div>
+    <div class="sum-grid">${cards}</div>`;
+}
+
+function caseHTML(c){
+  const tiles=c.kpis.map(k=>`<div class="tile ${k.cls}"><div class="tv">${k.v}</div><div class="tl">${k.l}</div><div class="tt">${k.tag}</div></div>`).join('');
+  const tgt=c.target.map(t=>`<p style="margin-bottom:6px"><span class="reqpill">${t[0]}</span>${t[1]}</p>`).join('');
+  const pains=c.pains.map(p=>`<span class="pain">${p}</span>`).join('');
+  return `<div class="datanote">Status: <b>Manual</b> → target <b>Otomatis</b>. Angka "—" belum tersedia (menunggu data), bukan diasumsikan. Effort adalah yang disebut tim.</div>
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:16px">
+      ${badges()} <span class="wfref">${c.wf}</span>
+    </div>
+    <div class="sec-lbl">KPI (kerangka — terisi saat data tersedia)</div>
+    <div class="kpis">${tiles}</div>
+    <div class="split">
+      <div class="blk"><h4>Metode saat ini (As-Is)</h4><p>${c.asis}</p></div>
+      <div class="blk target"><h4>Target otomatisasi</h4>${tgt}</div>
+    </div>
+    <div class="sec-lbl">Titik masalah (dari elisitasi)</div>
+    <div class="pains">${pains}</div>
+    <a class="link" href="analisis-bisnis.html#scope" target="_blank">Lihat gap analysis detail (08.D) →</a>`;
+}
+
+function wfHTML(){
+  return `<div class="datanote">Fokus <b>3 case prioritas</b>. Pilih case untuk melihat alur prosesnya. Tanda ⚠ = titik masalah terdokumentasi. Sumber: elisitasi tim finance + file unduhan (mis. Revenue Sharing 202606: 2 file × 500 baris A–M / N–Z).</div>
+    <div class="sec-lbl">Pemetaan 3 Case Prioritas</div>
+    <table class="wf-tbl">
+      <thead><tr><th>Case</th><th>Workflow terkait</th><th>Aktivitas (Katalog)</th><th></th></tr></thead>
+      <tbody>
+        <tr><td><b>1 · Revenue Sharing Report</b></td><td>WF1</td><td>#1 · Partner Report</td><td><span class="prio-badge">Prioritas 1</span></td></tr>
+        <tr><td><b>2 · Sales Report SPT PPN</b></td><td>terkait WF6</td><td>belum tercatat (proses distinct)</td><td><span class="prio-badge">Prioritas 2</span></td></tr>
+        <tr><td><b>3 · Bukti Potong Distribution</b></td><td>WF11</td><td>#9 · Pengiriman Bukti Potong</td><td><span class="prio-badge">Prioritas 3</span></td></tr>
+      </tbody>
+    </table>
+    <div class="sec-lbl">Alur Proses per Case</div>
+    <div class="fbar" id="flowbar">
+      <button class="flowbtn active" data-flow="rs">Revenue Sharing</button>
+      <button class="flowbtn" data-flow="sr">Sales Report SPT PPN</button>
+      <button class="flowbtn" data-flow="bp">Bukti Potong</button>
+    </div>
+    <div id="flowBox">${flowRender(FLOWS.rs)}</div>
+    <a class="link" href="analisis-bisnis.html" target="_blank" style="margin-top:18px">Buka Analisis Bisnis lengkap →</a>`;
+}
+
+/* ---------- Upload & Combine + Partner Active/Inactive ---------- */
+/* Sample = baris NYATA dari file 202606 (contoh) sampai ada upload. */
+const SAMPLE_RS=[
+ {'Partner Name':'Grand Indonesia','Start Date':'01 Jun 2026','EndDate':'30 Jun 2026','Total':6313973,'Status':'success'},
+ {'Partner Name':'AEON Mall Sentul City','Start Date':'01 Jun 2026','EndDate':'30 Jun 2026','Total':5050000,'Status':'success'},
+ {'Partner Name':'AEON Mall BSD City','Start Date':'01 Jun 2026','EndDate':'30 Jun 2026','Total':3961499,'Status':'success'},
+ {'Partner Name':'Modern Golf & Country Club','Start Date':'01 Jun 2026','EndDate':'30 Jun 2026','Total':53708,'Status':'success'},
+ {'Partner Name':'100 Panda','Start Date':'01 Jun 2026','EndDate':'30 Jun 2026','Total':6688,'Status':'success'},
+ {'Partner Name':'Hersall Smoothie Baywalk M','Start Date':'01 Jun 2026','EndDate':'30 Jun 2026','Total':77373,'Status':'success'},
+ {'Partner Name':'Foodhall','Start Date':'01 Jan 2025','EndDate':'30 Jun 2026','Total':37900162,'Status':'success'},
+ {'Partner Name':'Interaksi Festival','Start Date':'24 Jul 2026','EndDate':'24 Jul 2026','Total':'','Status':'failed'},
+ {'Partner Name':'Rendezveous 2026','Start Date':'24 Jul 2026','EndDate':'24 Jul 2026','Total':'','Status':'failed'},
+ {'Partner Name':'de Asasta','Start Date':'01 Jun 2026','EndDate':'30 Jun 2026','Total':'','Status':'failed'},
+ {'Partner Name':'IJL Kitchen','Start Date':'01 Jun 2026','EndDate':'30 Jun 2026','Total':'','Status':'failed'},
+ {'Partner Name':'Grand Indonesia','Start Date':'01 Jun 2026','EndDate':'30 Jun 2026','Total':6313973,'Status':'success'},
+];
+function rsData(){return window.__RS_ROWS||SAMPLE_RS;}
+function rsIsUploaded(){return !!window.__RS_ROWS;}
+function rsPeriod(r){return (r['Start Date']||'?')+' – '+(r['EndDate']||'?');}
+function rsStatus(r){return String(r['Status']||'').toLowerCase();}
+function rsDominant(rows){const c={};rows.forEach(r=>{const k=rsPeriod(r);c[k]=(c[k]||0)+1;});let b='',n=-1;for(const k in c)if(c[k]>n){n=c[k];b=k;}return b;}
+function rsFlagCol(rows){const h=Object.keys(rows[0]||{});return h.find(k=>/(^|\b)(active|inactive|aktif|non-?aktif|status partner|partner status)\b/i.test(k))||null;}
+function fmtID(n){n=Number(n);return isNaN(n)?'—':n.toLocaleString('id-ID');}
+
+async function rsCombine(files){
+  if(typeof XLSX==='undefined'){alert('Library pembaca Excel belum termuat (perlu koneksi internet). Coba lagi saat online.');return;}
+  const all=[];
+  for(const f of files){
+    try{
+      const buf=await f.arrayBuffer();
+      const wb=XLSX.read(buf,{type:'array'});
+      const ws=wb.Sheets[wb.SheetNames[0]];
+      const arr=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+      if(!arr.length)continue;
+      const hdr=arr[0].map(h=>String(h).trim());
+      arr.slice(1).forEach(r=>{if(r.some(c=>c!==''&&c!=null)){const o={};hdr.forEach((h,i)=>o[h]=r[i]);o._src=f.name;all.push(o);}});
+    }catch(e){alert('Gagal membaca '+f.name+': '+e.message);}
+  }
+  if(all.length){window.__RS_ROWS=all;renderUpload();}
+}
+
+/* Master Terminal compare (by Partner Name). MT dikelola Ops di RchgOps & auto-sync — finance TIDAK upload.
+   window.__MT_ROWS diisi oleh integrasi RchgOps; terdaftar (terminal aktif) = Active. */
+function norm(s){return String(s==null?'':s).toLowerCase().replace(/\s+/g,' ').trim();}
+function mtActiveNames(mt){
+  const h=Object.keys(mt[0]||{});
+  const pn=h.find(k=>/partner.?name/i.test(k))||h.find(k=>/partner/i.test(k));
+  const ia=h.find(k=>/is.?active/i.test(k))||h.find(k=>/^active$/i.test(k));
+  const set=new Set();
+  mt.forEach(r=>{const p=norm(r[pn]);if(!p)return;let ok=true;if(ia){const v=String(r[ia]).toLowerCase();if(['false','0','no','tidak','inactive','nonaktif'].indexOf(v)>=0)ok=false;}if(ok)set.add(p);});
+  return set;
+}
+function renderUpload(){
+  const rows=rsData();
+  const success=rows.filter(r=>rsStatus(r)==='success');
+  const failed=rows.filter(r=>rsStatus(r)==='failed');
+  const dom=rsDominant(success);
+  const off=success.filter(r=>rsPeriod(r)!==dom);
+  const seen={};success.forEach(r=>{const k=r['Partner Name']+'|'+rsPeriod(r);seen[k]=(seen[k]||0)+1;});
+  const dupRows=success.filter(r=>seen[r['Partner Name']+'|'+rsPeriod(r)]>1);
+  const dupCount=Object.values(seen).filter(n=>n>1).reduce((a,n)=>a+(n-1),0);
+  const uSeen={},unik=[];success.forEach(r=>{const n=r['Partner Name'];if(!uSeen[n]){uSeen[n]=1;unik.push(r);}});
+  const subsets={total:rows,success:success,failed:failed,unik:unik,dup:dupRows,off:off};
+  if(!subsets[window.__UP_FILTER])window.__UP_FILTER='success';
+  const fl=window.__UP_FILTER, cur=subsets[fl];
+  const kpi=[
+    ['Total baris',rows.length,'gabungan file','','total'],
+    ['Success',success.length,'siap diproses','var(--brand-deep)','success'],
+    ['Failed / tanpa transaksi',failed.length,'dipisahkan',failed.length?'var(--red)':'','failed'],
+    ['Partner unik',unik.length,'(success, dedup)','','unik'],
+    ['Duplikat',dupCount,'partner+periode sama',dupCount?'var(--red)':'','dup'],
+    ['Di luar periode dominan',off.length,dom,off.length?'var(--amber)':'','off'],
+  ].map(k=>`<div class="kpi click ${fl===k[4]?'active':''}" data-filter="${k[4]}"><div class="kpi-lbl">${k[0]}</div><div class="kpi-val" style="${k[3]?'--c:'+k[3]:''}">${k[1]}</div><div class="kpi-sub">${k[2]}</div></div>`).join('');
+  const disp=cur.map(r=>({name:r['Partner Name']||'',period:rsPeriod(r),total:r['Total'],status:r['Status']||'',off:rsPeriod(r)!==dom}));
+  const sorted=sortRows(disp,SORT.up.col,SORT.up.dir,SORT.up.col==='total');
+  const prev=sorted.slice(0,80).map(r=>`<tr><td><b>${r.name}</b></td><td>${r.period}${r.off?' <span style="color:var(--amber);font-weight:700">· luar periode</span>':''}</td><td style="text-align:right;font-family:var(--mono)">${fmtID(r.total)}</td><td>${r.status}</td></tr>`).join('');
+  const th=(c,lbl,ex)=>`<th class="sortable ${SORT.up.col===c?'on':''}" data-c="${c}" ${ex||''}>${lbl}${arrow(SORT.up,c)}</th>`;
+  const flabel={total:'Semua baris',success:'Success',failed:'Failed / tanpa transaksi',unik:'Partner unik (dedup)',dup:'Duplikat',off:'Di luar periode dominan'};
+  document.getElementById('content').innerHTML=
+   `<div class="datanote"><b>Upload &amp; Combine.</b> Unggah file hasil download Revenue Sharing (2 batch karena batas fetch 500) → digabung, dipisah success vs failed, dan ditandai baris di luar periode dominan. ${rsIsUploaded()?'<b>Menampilkan data hasil upload.</b>':'Saat ini menampilkan <b>contoh data nyata 202606</b> (belum ada upload).'}</div>
+    <div class="uploader">
+      <div class="dz"><label class="lab" for="rsFiles">＋ Pilih file (bisa 2 batch)</label><input type="file" id="rsFiles" multiple accept=".xlsx,.xls,.csv"><div class="fn" id="rsFn">.xlsx / .csv dari admin.recharge.sh</div></div>
+      <div class="dz" style="display:flex;flex-direction:column;justify-content:center;gap:10px"><button class="btn2" id="rsCombineBtn">Combine file</button><button class="btn-sm-outline" id="rsReset">Kembali ke contoh</button></div>
+    </div>
+    <div class="kpi-row" style="grid-template-columns:repeat(3,1fr)">${kpi}</div>
+    <div class="sec-lbl">Preview: ${flabel[fl]} (${cur.length}) · klik kartu KPI untuk ganti · klik header untuk sort</div>
+    <div class="tw"><table class="wf-tbl"><thead><tr>${th('name','Partner')}${th('period','Periode')}${th('total','Total','style="text-align:right"')}${th('status','Status')}</tr></thead><tbody>${prev||'<tr><td colspan=4>Tidak ada baris untuk kategori ini.</td></tr>'}</tbody></table></div>
+    <p style="font-size:11.5px;color:var(--text-dim);margin-top:10px"><b>Success</b> = master yang dipakai halaman Partner Active/Inactive. Baris "luar periode" (mis. Foodhall Jan 2025) &amp; failed ditandai/dipisah — bukan dibuang diam-diam.</p>`;
+  const fi=document.getElementById('rsFiles');
+  fi.onchange=()=>{document.getElementById('rsFn').textContent=[...fi.files].map(f=>f.name).join(', ')||'.xlsx / .csv';};
+  document.getElementById('rsCombineBtn').onclick=()=>{if(!fi.files.length){alert('Pilih file dulu.');return;}rsCombine([...fi.files]);};
+  document.getElementById('rsReset').onclick=()=>{window.__RS_ROWS=null;renderUpload();};
+  document.querySelectorAll('#content .kpi.click').forEach(k=>k.onclick=()=>{window.__UP_FILTER=k.dataset.filter;renderUpload();});
+  document.querySelectorAll('#content .wf-tbl th.sortable').forEach(t=>t.onclick=()=>{const c=t.dataset.c;if(SORT.up.col===c)SORT.up.dir*=-1;else{SORT.up.col=c;SORT.up.dir=1;}renderUpload();});
+}
+
+function renderPartners(){
+  const rows=rsData();
+  const success=rows.filter(r=>rsStatus(r)==='success');
+  const uniq=[...new Set(success.map(r=>r['Partner Name']))];
+  const mt=window.__MT_ROWS||null;
+  const names=mt?mtActiveNames(mt):null;
+  let active=0,inactive=0;
+  const disp=uniq.map(p=>{
+    const r=success.find(x=>x['Partner Name']===p);
+    let cls='b-na',flag='menunggu sinkron MT';
+    if(names){if(names.has(norm(p))){cls='b-active';flag='Active';active++;}else{cls='b-inactive';flag='Inactive';inactive++;}}
+    return {name:p,period:rsPeriod(r),flag:flag,cls:cls};
+  });
+  const sorted=sortRows(disp,SORT.pt.col,SORT.pt.dir,false);
+  const kpi=[
+    ['Partner (RS success)',uniq.length,'dari Upload & Combine',''],
+    ['Active',mt?active:'—',mt?'terdaftar di Master Terminal':'menunggu MT',mt?'var(--brand-deep)':''],
+    ['Inactive',mt?inactive:'—',mt?'tak terdaftar':'',mt&&inactive?'var(--red)':''],
+  ].map(k=>`<div class="kpi"><div class="kpi-lbl">${k[0]}</div><div class="kpi-val" style="${k[3]?'--c:'+k[3]:''}">${k[1]}</div><div class="kpi-sub">${k[2]}</div></div>`).join('');
+  const sync=mt?`<b>Master Terminal tersinkron</b> — ${mt.length} baris dari RchgOps.`:'<b>Master Terminal belum tersambung</b> di prototipe ini — perbandingan aktif otomatis saat terhubung ke RchgOps.';
+  const note=`<div class="datanote">Menampilkan <b>seluruh partner</b> dari Upload &amp; Combine, dibandingkan dengan <b>Master Terminal</b> — dikelola Ops di RchgOps &amp; <b>disinkronkan otomatis</b> (finance tidak upload). <b>Terdaftar di Master Terminal = Active</b>; tidak terdaftar = Inactive. Cocok by Partner Name (beda ejaan bisa keliru Inactive → jaga konsistensi nama). ${sync}</div>`;
+  const th=(c,lbl)=>`<th class="sortable ${SORT.pt.col===c?'on':''}" data-c="${c}">${lbl}${arrow(SORT.pt,c)}</th>`;
+  const body=sorted.map(r=>`<tr><td><b>${r.name}</b></td><td style="font-family:var(--mono);font-size:11.5px;color:var(--text-dim)">${r.period}</td><td><span class="tagb ${r.cls}">${r.flag}</span></td></tr>`).join('');
+  document.getElementById('content').innerHTML=
+   `${note}
+    <div class="kpi-row" style="grid-template-columns:repeat(3,1fr)">${kpi}</div>
+    <div class="sec-lbl">Daftar Partner (${uniq.length}) · klik header untuk sort</div>
+    <div class="tw"><table class="wf-tbl"><thead><tr>${th('name','Partner')}${th('period','Periode')}${th('flag','Status')}</tr></thead><tbody>${body||'<tr><td colspan=3>Belum ada data — combine dulu di halaman Upload.</td></tr>'}</tbody></table></div>`;
+  document.querySelectorAll('#content .wf-tbl th.sortable').forEach(t=>t.onclick=()=>{const c=t.dataset.c;if(SORT.pt.col===c)SORT.pt.dir*=-1;else{SORT.pt.col=c;SORT.pt.dir=1;}renderPartners();});
+}
+
+function render(view){
+  const c=document.getElementById('content');
+  if(view==='overview')c.innerHTML=overviewHTML();
+  else if(view==='wf')c.innerHTML=wfHTML();
+  else if(view==='mc')renderMC();
+  else if(view==='upload')renderUpload();
+  else if(view==='partners')renderPartners();
+  else{const cs=CASES.find(x=>x.id===view);c.innerHTML=caseHTML(cs);}
+  document.getElementById('tbTitle').textContent=TITLES[view]||'Overview';
+  document.querySelectorAll('.nav-item[data-view]').forEach(n=>n.classList.toggle('active',n.dataset.view===view));
+  document.getElementById('content').scrollTop=0;
+  // wire summary card clicks
+  c.querySelectorAll('.sum[data-go]').forEach(s=>s.onclick=()=>go(s.dataset.go));
+  // wire flow selector (Workflow view)
+  c.querySelectorAll('.flowbtn').forEach(b=>b.onclick=()=>{c.querySelectorAll('.flowbtn').forEach(x=>x.classList.remove('active'));b.classList.add('active');document.getElementById('flowBox').innerHTML=flowRender(FLOWS[b.dataset.flow]);});
+}
+function go(view){render(view);document.getElementById('sidebar').classList.remove('open');}
+
+/* nav + login + mobile */
+document.querySelectorAll('.nav-item[data-view]').forEach(n=>n.onclick=()=>go(n.dataset.view));
+document.getElementById('btnLogin').onclick=function(){
+  document.getElementById('loginScreen').style.display='none';
+  document.getElementById('app').style.display='block';
+  render('overview');
+};
+document.getElementById('burger').onclick=()=>document.getElementById('sidebar').classList.toggle('open');
+document.getElementById('mclose').onclick=closeModal;
+document.getElementById('modal').addEventListener('click',e=>{if(e.target.id==='modal')closeModal();});
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal();});
+</script>
+</body>
+</html>
