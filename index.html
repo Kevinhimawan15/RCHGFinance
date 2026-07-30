@@ -311,7 +311,8 @@ th.sortable.on .ar{opacity:1;color:var(--brand-deep)}
         <div class="nav-item" data-view="terminal"><span class="dot"></span>Master Terminal (RchgOps)</div>
         <div class="menu-lbl">Data Sales (SPT PPN)</div>
         <div class="nav-item" data-view="spt"><span class="dot"></span>Data Expired/Wipe/Return</div>
-        <div class="nav-item" data-view="vat"><span class="dot"></span>VAT Recon (download)</div>
+        <div class="nav-item" data-view="topup"><span class="dot"></span>Data Top Up</div>
+        <div class="nav-item" data-view="vat"><span class="dot"></span>VAT Recon</div>
         <div class="menu-lbl">Case Prioritas</div>
         <div class="nav-item" data-view="rs"><span class="dot"></span>Revenue Sharing</div>
         <div class="nav-item" data-view="sr"><span class="dot"></span>Sales Report SPT PPN</div>
@@ -406,7 +407,7 @@ const CASES=[
   who:'PIC: Finance · Terkait: Konsultan Pajak (SPT Masa dilaporkan lebih dulu)',
  },
 ];
-const TITLES={overview:'Overview',mc:'Monitoring Control',docnum:'Penomoran Dokumen Eksternal',upload:'Upload & Combine Revenue Sharing',partners:'Partner Active / Inactive',terminal:'Master Terminal (RchgOps)',spt:'Sales SPT PPN — Data Expired/Wipe/Return',vat:'VAT Recon — Output Reconciliation',sr:'Sales Report untuk SPT PPN',rs:'Revenue Sharing Report',bp:'Bukti Potong Distribution',rules:'Rules & Rumus (Aturan & Formula)',wf:'Workflow & Proses'};
+const TITLES={overview:'Overview',mc:'Monitoring Control',docnum:'Penomoran Dokumen Eksternal',upload:'Upload & Combine Revenue Sharing',partners:'Partner Active / Inactive',terminal:'Master Terminal (RchgOps)',spt:'Sales SPT PPN — Data Expired/Wipe/Return',topup:'Data Top Up (Prepaid Sales)',vat:'VAT Recon — Output Reconciliation',sr:'Sales Report untuk SPT PPN',rs:'Revenue Sharing Report',bp:'Bukti Potong Distribution',rules:'Rules & Rumus (Aturan & Formula)',wf:'Workflow & Proses'};
 
 /* ---------- Monitoring Control: work tracker for the 3 priority cases ---------- */
 const CASE_STEPS=[
@@ -1009,53 +1010,110 @@ function renderSPT(){
   c.querySelectorAll('.wf-tbl th.sortable').forEach(function(t){t.onclick=function(){var w=t.dataset.t==='c'?SORT.spc:SORT.spd,cc=t.dataset.c;if(w.col===cc)w.dir*=-1;else{w.col=cc;w.dir=1;}renderSPT();};});
 }
 
-/* ---------- VAT Recon — reproduksi sheet "VAT Recon" dari file sales bulanan (output SAMA PERSIS) ---------- */
-function vatState(){return window.__VAT||(window.__VAT={aoa:null,fileName:null,period:null,err:null});}
-function vatRpNum(v){return Math.round(Number(v)).toLocaleString('id-ID');}
-function vatFindRow(aoa,label){for(var i=0;i<aoa.length;i++){var r=aoa[i];if(r&&typeof r[0]==='string'&&r[0].trim().toLowerCase()===label.toLowerCase())return r;}return null;}
-async function vatParse(file){
-  var s=vatState();
-  if(typeof XLSX==='undefined'){alert('Library Excel belum termuat (perlu internet).');return;}
-  try{
-    var buf=await file.arrayBuffer(),wb=XLSX.read(buf,{type:'array'});
-    var nm=wb.SheetNames.find(function(n){return /vat\s*recon/i.test(n);});
-    if(!nm){s.err='Sheet "VAT Recon" tidak ditemukan di file '+file.name+'.';s.aoa=null;renderVAT();return;}
-    var aoa=XLSX.utils.sheet_to_json(wb.Sheets[nm],{header:1,raw:true,defval:null});
-    var per='';for(var i=0;i<aoa.length;i++){var a0=aoa[i]&&aoa[i][0];if(typeof a0==='string'&&/^for\s/i.test(a0.trim())){per=a0.trim().replace(/^for\s*/i,'');break;}}
-    s.aoa=aoa;s.fileName=file.name;s.period=per;s.err=null;renderVAT();
-  }catch(e){s.err='Gagal membaca file: '+(e.message||e);s.aoa=null;renderVAT();}
+/* ---------- Data Top Up (Prepaid Sales) — sumber: RchgDashboard purchase_report via RPC ---------- */
+function tuMonthRange(p){var y=+p.slice(0,4),m=+p.slice(5,7);var n=new Date(y,m,0).getDate();return [p+'-01',p+'-'+String(n).padStart(2,'0')];}
+/* purFetch: agregat purchase_report satu periode. Balance = "ReCharge Balance"; Package = label diawali "Paket". */
+function purFetch(period){
+  var r=tuMonthRange(period);
+  return Promise.all([
+    dashRpc('get_purchase_daily_breakdown',{date_from:r[0],date_to:r[1],dim:'package'}),
+    dashRpc('get_purchase_daily_breakdown',{date_from:r[0],date_to:r[1],dim:'payment'})
+  ]).then(function(res){
+    var prod=(res[0].ok&&Array.isArray(res[0].data))?res[0].data:[];
+    var pay=(res[1].ok&&Array.isArray(res[1].data))?res[1].data:[];
+    var byProduct={},byPay={},daily={},total=0,trx=0,bal=0,pkg=0,oth=0;
+    prod.forEach(function(x){var a=Number(x.amount)||0,t=Number(x.trx)||0,k=x.label||'(kosong)';
+      if(!byProduct[k])byProduct[k]={amt:0,trx:0};byProduct[k].amt+=a;byProduct[k].trx+=t;
+      if(!daily[x.date])daily[x.date]={amt:0,trx:0};daily[x.date].amt+=a;daily[x.date].trx+=t;total+=a;trx+=t;
+      if(/recharge balance/i.test(k))bal+=a;else if(/^paket/i.test(k))pkg+=a;else oth+=a;});
+    pay.forEach(function(x){var k=x.label||'(kosong)';byPay[k]=(byPay[k]||0)+(Number(x.amount)||0);});
+    return {ok:(res[0].ok&&res[1].ok),byProduct:byProduct,byPay:byPay,daily:daily,total:total,trx:trx,balance:bal,'package':pkg,other:oth};
+  });
 }
-function vatDownload(){
-  var s=vatState();if(!s.aoa)return;
-  if(typeof XLSX==='undefined'){alert('Library Excel belum termuat.');return;}
-  var wb=XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(s.aoa),'VAT Recon');
-  XLSX.writeFile(wb,'VAT Recon'+(s.period?' - '+s.period:'')+'.xlsx');
-}
-function renderVAT(){
-  var s=vatState(),c=document.getElementById('content');
-  var banner='<div class="datanote"><b>VAT Recon — Output Reconciliation.</b> Upload file sales bulanan (mis. <i>202606 Sales.xlsx</i>) → dashboard membaca sheet <b>VAT Recon</b> apa adanya lalu menampilkannya. Tombol <b>Download</b> meng-export ulang dengan angka &amp; susunan <b>sama persis</b>. Rumus: DPP = Gross ÷ 1,11 · VAT = 11% (Sumber: file + wawancara Laura).</div>';
-  var controls='<div class="filterbar"><label class="btn2" style="cursor:pointer">Upload file sales (.xlsx)<input type="file" id="vatFile" accept=".xlsx,.xls" style="display:none"></label><button class="btn-sm-outline" id="vatDl"'+(s.aoa?'':' disabled')+'>Download VAT Recon</button>'+(s.fileName?'<span style="font-size:11.5px;color:var(--text-dim)">File: '+s.fileName+'</span>':'')+'</div>';
+function tuState(){return window.__TU||(window.__TU={period:sptDefaultPeriod(),data:null,loading:false,err:null,tok:0});}
+function tuLoad(){var s=tuState(),tok=++s.tok;s.loading=true;s.err=null;renderTopup();
+  purFetch(s.period).then(function(d){if(tok!==s.tok)return;if(!d.ok){s.err='Gagal memuat data top up dari RchgDashboard.';s.data=null;}else s.data=d;s.loading=false;renderTopup();})
+  .catch(function(e){if(tok!==s.tok)return;s.err=String(e.message||e);s.loading=false;renderTopup();});}
+function tuExport(){var s=tuState();if(!s.data)return;if(typeof XLSX==='undefined'){alert('Library Excel belum termuat.');return;}
+  var d=s.data,wb=XLSX.utils.book_new();
+  var h1=[['Produk','Transaksi','Amount (Gross)']];Object.keys(d.byProduct).sort(function(a,b){return d.byProduct[b].amt-d.byProduct[a].amt;}).forEach(function(k){h1.push([k,d.byProduct[k].trx,d.byProduct[k].amt]);});h1.push(['TOTAL',d.trx,d.total]);
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(h1),'Per Produk');
+  var h2=[['Metode Bayar','Amount (Gross)']];Object.keys(d.byPay).sort(function(a,b){return d.byPay[b]-d.byPay[a];}).forEach(function(k){h2.push([k,d.byPay[k]]);});
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(h2),'Per Metode Bayar');
+  XLSX.writeFile(wb,'Top Up '+s.period+'.xlsx');}
+function renderTopup(){
+  var s=tuState(),c=document.getElementById('content');
+  if(s.data===null&&!s.loading&&!s.err)return tuLoad();
+  var controls='<div class="filterbar"><label style="font-size:12px;font-weight:700;color:var(--text2)">Periode <input type="month" id="tuP" value="'+s.period+'" style="margin-left:6px"></label><span style="flex:1"></span><button class="btn-sm-outline" id="tuReload">↻ Muat ulang</button><button class="btn2" id="tuExp"'+(s.data?'':' disabled')+'>Export Excel</button></div>';
+  var banner='<div class="datanote"><b>Data Top Up (Prepaid Sales)</b> — transaksi top up dari <code>purchase_report</code> (RchgDashboard) yang <b>Status = PAID</b>, via RPC resmi. Alur Laura: download top up → Receipt Ori → pecah <b>Top Up Balance</b> (produk "ReCharge Balance") &amp; <b>Top Up Package</b> (produk "Paket …"). Amount = kolom Final Amount (Gross, termasuk PPN).</div>';
   var body='';
-  if(s.err)body='<div class="datanote"><b>'+s.err+'</b></div>';
-  else if(!s.aoa)body='<div class="datanote">Belum ada file. Klik <b>Upload file sales</b> untuk menampilkan &amp; mengunduh VAT Recon.</div>';
-  else{
-    var aoa=s.aoa;
-    var gRow=vatFindRow(aoa,'Top Up Prepaid/Sales'),dRow=vatFindRow(aoa,'DPP'),vRow=vatFindRow(aoa,'VAT 11%');
-    var gross=gRow?gRow[5]:null,dpp=dRow?dRow[5]:null,vat=vRow?vRow[5]:null;
-    var kpiArr=[['Periode',s.period||'—','',''],['Total Gross',gross!=null?'Rp '+vatRpNum(gross):'—','penjualan (termasuk PPN)',''],['Total DPP',dpp!=null?'Rp '+vatRpNum(dpp):'—','Gross ÷ 1,11',''],['VAT 11%',vat!=null?'Rp '+vatRpNum(vat):'—','output pajak','var(--brand-deep)']];
-    var kpi=kpiArr.map(function(k){return '<div class="kpi"><div class="kpi-lbl">'+k[0]+'</div><div class="kpi-val" style="font-size:'+(k[0]==='Periode'?'20px':'')+';'+(k[3]?'--c:'+k[3]:'')+'">'+k[1]+'</div><div class="kpi-sub">'+k[2]+'</div></div>';}).join('');
-    // verifikasi rumus dari Gross
-    var vchk='';
-    if(gross!=null&&vat!=null){var comp=(Number(gross)/1.11)*0.11;var ok=Math.abs(comp-Number(vat))<1;vchk='<p style="font-size:11.5px;margin:8px 0;color:'+(ok?'var(--brand-deep)':'var(--red)')+'">'+(ok?'✓':'⚠')+' Verifikasi rumus: VAT = (Gross ÷ 1,11) × 11% = Rp '+vatRpNum(comp)+' '+(ok?'— cocok dengan sheet':'— TIDAK cocok dengan sheet ('+vatRpNum(vat)+')')+'</p>';}
-    // reproduksi tabel
-    var trs=aoa.map(function(r){if(!r||r.every(function(x){return x==null||x==='';}))return '';var tds='';for(var col=0;col<6;col++){var v=r[col];var num=typeof v==='number';tds+='<td'+(num?' style="text-align:right;font-family:var(--mono);white-space:nowrap"':'')+'>'+(v==null?'':(num?vatRpNum(v):String(v)))+'</td>';}return '<tr>'+tds+'</tr>';}).join('');
-    body='<div class="kpi-row" style="grid-template-columns:repeat(4,1fr)">'+kpi+'</div>'+vchk
-      +'<h3 class="spt-h">Reproduksi sheet VAT Recon '+(s.period?'— '+s.period:'')+'</h3>'
-      +'<div class="tw"><table class="wf-tbl vat-tbl"><tbody>'+trs+'</tbody></table></div>';
+  if(s.loading)body='<div class="datanote">Memuat data top up '+s.period+'…</div>';
+  else if(s.err)body='<div class="datanote"><b>'+s.err+'</b></div>';
+  else if(s.data){
+    var d=s.data;
+    var kpi=[['Total Top Up',sptRp(d.total),d.trx.toLocaleString('id-ID')+' transaksi',''],['Top Up Balance',sptRp(d.balance),'produk ReCharge Balance',''],['Top Up Package',sptRp(d['package']),'produk Paket …',''],['Lainnya',sptRp(d.other),'produk lain','']].map(function(k){return '<div class="kpi"><div class="kpi-lbl">'+k[0]+'</div><div class="kpi-val" style="'+(k[3]?'--c:'+k[3]:'')+'">'+k[1]+'</div><div class="kpi-sub">'+k[2]+'</div></div>';}).join('');
+    var prodKeys=Object.keys(d.byProduct).sort(function(a,b){return d.byProduct[b].amt-d.byProduct[a].amt;});
+    var prodBody=prodKeys.map(function(k){var cat=/recharge balance/i.test(k)?'Balance':(/^paket/i.test(k)?'Package':'Lainnya');return '<tr><td>'+k+'</td><td>'+cat+'</td><td style="text-align:right">'+d.byProduct[k].trx.toLocaleString('id-ID')+'</td><td style="text-align:right"><b>'+sptRp(d.byProduct[k].amt)+'</b></td></tr>';}).join('');
+    var prodTot='<tr class="ttl"><td><b>TOTAL</b></td><td></td><td style="text-align:right"><b>'+d.trx.toLocaleString('id-ID')+'</b></td><td style="text-align:right"><b>'+sptRp(d.total)+'</b></td></tr>';
+    var payKeys=Object.keys(d.byPay).sort(function(a,b){return d.byPay[b]-d.byPay[a];});
+    var payBody=payKeys.map(function(k){return '<tr><td>'+k+'</td><td style="text-align:right"><b>'+sptRp(d.byPay[k])+'</b></td></tr>';}).join('');
+    body='<div class="kpi-row" style="grid-template-columns:repeat(4,1fr)">'+kpi+'</div>'
+      +'<h3 class="spt-h">Per produk</h3><div class="tw"><table class="wf-tbl"><thead><tr><th>Produk</th><th>Kategori</th><th>Transaksi</th><th>Amount (Gross)</th></tr></thead><tbody>'+prodTot+prodBody+'</tbody></table></div>'
+      +'<h3 class="spt-h">Per metode bayar</h3><div class="tw"><table class="wf-tbl"><thead><tr><th>Metode Bayar</th><th>Amount (Gross)</th></tr></thead><tbody>'+payBody+'</tbody></table></div>';
   }
   c.innerHTML=banner+controls+body;
-  var fe=document.getElementById('vatFile');if(fe)fe.onchange=function(){if(this.files.length)vatParse(this.files[0]);};
+  var pe=document.getElementById('tuP');if(pe)pe.onchange=function(){s.period=this.value;s.data=null;s.err=null;renderTopup();};
+  var rl=document.getElementById('tuReload');if(rl)rl.onclick=function(){s.data=null;s.err=null;renderTopup();};
+  var ex=document.getElementById('tuExp');if(ex)ex.onclick=tuExport;
+}
+
+/* ---------- VAT Recon — dihitung dari DATA LIVE: Top Up (purchase_report) + E/W/R (rent_report) ---------- */
+function vatRpNum(v){return Math.round(Number(v)).toLocaleString('id-ID');}
+function vatState(){if(!window.__VAT){var pen={};try{pen=JSON.parse(localStorage.getItem('rchg-fin-vatpen')||'{}');}catch(e){}window.__VAT={period:sptDefaultPeriod(),data:null,loading:false,err:null,tok:0,pen:pen};}return window.__VAT;}
+function vatPen(){var s=vatState();return Number(s.pen[s.period])||0;}
+function vatSetPen(v){var s=vatState();if(v>0)s.pen[s.period]=v;else delete s.pen[s.period];try{localStorage.setItem('rchg-fin-vatpen',JSON.stringify(s.pen));}catch(e){}}
+function vatLoad(){var s=vatState(),tok=++s.tok;s.loading=true;s.err=null;renderVAT();
+  var r=tuMonthRange(s.period);
+  Promise.all([purFetch(s.period),dashRpc('get_rent_city_range',{date_from:r[0],date_to:r[1],statuses:['expired','wipe','return']}).catch(function(){return {ok:false};})])
+  .then(function(res){if(tok!==s.tok)return;var tu=res[0],cr=res[1],rt=0,rx=0;if(cr&&cr.ok&&Array.isArray(cr.data))cr.data.forEach(function(x){rt+=Number(x.revenue)||0;rx+=Number(x.trx)||0;});
+    if(!tu.ok){s.err='Gagal memuat data top up.';s.data=null;}else s.data={tu:tu,rentTot:rt,rentTrx:rx};s.loading=false;renderVAT();})
+  .catch(function(e){if(tok!==s.tok)return;s.err=String(e.message||e);s.loading=false;renderVAT();});}
+function vatCats(tu,pen){var a=[['PB-Top Up (Balance)',tu.balance],['PB-Package',tu['package']],['Lainnya',tu.other]];if(pen>0)a.push(['Penalty PB Loss (input manual)',pen]);return a.filter(function(c){return c[1]>0;});}
+function vatDownload(){var s=vatState();if(!s.data)return;if(typeof XLSX==='undefined'){alert('Library Excel belum termuat.');return;}
+  var tu=s.data.tu,pen=vatPen(),gross=tu.total+pen,aoa=[['PT Jalan Terus Saja'],['VAT Output Reconciliation (dihitung dari data live)'],['For '+s.period],[],['Kategori','Gross','DPP','VAT 11%']];
+  vatCats(tu,pen).forEach(function(c){aoa.push([c[0],c[1],c[1]/1.11,(c[1]/1.11)*0.11]);});
+  aoa.push(['TOTAL',gross,gross/1.11,(gross/1.11)*0.11]);
+  aoa.push([]);aoa.push(['Konteks sewa Expired/Wipe/Return (rekonsiliasi prepayment)',s.data.rentTot,'',s.data.rentTrx+' trx']);
+  aoa.push([]);aoa.push(['CATATAN','Dari purchase_report (Status=PAID). BELUM termasuk pemisahan Adm Fee, Penalty PB Loss (input manual), & pengecualian Franchisee (Cikarang Groove, Kawisari) → bisa berbeda dari perhitungan manual finance.']);
+  var wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(aoa),'VAT Recon');XLSX.writeFile(wb,'VAT Recon '+s.period+'.xlsx');}
+function renderVAT(){
+  var s=vatState(),c=document.getElementById('content');
+  if(s.data===null&&!s.loading&&!s.err)return vatLoad();
+  var controls='<div class="filterbar"><label style="font-size:12px;font-weight:700;color:var(--text2)">Periode <input type="month" id="vatP" value="'+s.period+'" style="margin-left:6px"></label><label style="font-size:12px;font-weight:700;color:var(--text2);margin-left:6px">Penalty PB Loss (manual) <input type="number" id="vatPen" value="'+(vatPen()||'')+'" min="0" step="1000" placeholder="0" style="width:120px;margin-left:6px"></label><span style="flex:1"></span><button class="btn-sm-outline" id="vatReload">↻ Muat ulang</button><button class="btn2" id="vatDl"'+(s.data?'':' disabled')+'>Download VAT Recon</button></div>';
+  var banner='<div class="datanote"><b>VAT Recon — Output Reconciliation.</b> Dihitung <b>langsung dari data live</b>: Top Up (<code>purchase_report</code>) untuk VAT output + Expired/Wipe/Return (<code>rent_report</code>) untuk rekonsiliasi prepayment. Rumus: DPP = Gross ÷ 1,11 · VAT = 11% (Sumber: file 202606 Sales.xlsx + wawancara Laura).</div>';
+  var body='';
+  if(s.loading)body='<div class="datanote">Menghitung VAT Recon '+s.period+' dari data live…</div>';
+  else if(s.err)body='<div class="datanote"><b>'+s.err+'</b> — klik Muat ulang.</div>';
+  else if(s.data){
+    var tu=s.data.tu,pen=vatPen(),gross=tu.total+pen,dpp=gross/1.11,vat=dpp*0.11;
+    var kpi=[['Periode',s.period,'',''],['Gross (Top Up + Penalty)',sptRp(gross),'termasuk PPN',''],['DPP',sptRp(dpp),'Gross ÷ 1,11',''],['VAT 11%',sptRp(vat),'output pajak','var(--brand-deep)']].map(function(k){return '<div class="kpi"><div class="kpi-lbl">'+k[0]+'</div><div class="kpi-val" style="font-size:'+(k[0]==='Periode'?'20px':'')+';'+(k[3]?'--c:'+k[3]:'')+'">'+k[1]+'</div><div class="kpi-sub">'+k[2]+'</div></div>';}).join('');
+    var rowsH=vatCats(tu,pen).map(function(cc){var g=cc[1],dp=g/1.11;return '<tr><td>'+cc[0]+'</td><td style="text-align:right">'+sptRp(g)+'</td><td style="text-align:right">'+sptRp(dp)+'</td><td style="text-align:right"><b>'+sptRp(dp*0.11)+'</b></td></tr>';}).join('');
+    var tot='<tr class="ttl"><td><b>TOTAL VAT Output</b></td><td style="text-align:right"><b>'+sptRp(gross)+'</b></td><td style="text-align:right"><b>'+sptRp(dpp)+'</b></td><td style="text-align:right"><b>'+sptRp(vat)+'</b></td></tr>';
+    var flags='<div class="konfirm"><h4>⚠ Sisa penyesuaian agar sama persis dengan hitungan manual Laura</h4><ol>'
+      +'<li><b>Penalty PB Loss</b> — ✔ sudah bisa di-input manual di atas (Laura isi manual; Jun 2026 = Rp 700.000).</li>'
+      +'<li><b>Adm Fee (Other Income)</b> — di file Laura dipisah jadi kategori sendiri; di sini masih menyatu dalam Gross top up. <span class="src src-none">perlu aturan</span></li>'
+      +'<li><b>Franchisee</b> (Cikarang Groove &amp; Kawisari Cafe &amp; Eatery - 2nd Floor) — di file Laura di-<i>back out</i>; RPC saat ini belum menyediakan filter per terminal, jadi belum dikecualikan. <span class="src src-none">perlu aturan</span></li>'
+      +'<li><b>Split Balance/Package</b> memakai Product Name ("ReCharge Balance" vs "Paket …") — mendekati, tapi belum tentu identik dengan pembagian Laura. <span class="src src-none">perlu konfirmasi</span></li>'
+      +'</ol><p style="font-size:11.5px;color:var(--text-dim);margin:9px 0 0">Ini alat rekonsiliasi: bandingkan angka di atas dengan hitungan manual untuk melihat selisih, lalu terapkan penyesuaian yang tersisa.</p></div>';
+    body='<div class="kpi-row" style="grid-template-columns:repeat(4,1fr)">'+kpi+'</div>'
+      +'<h3 class="spt-h">VAT Output '+s.period+' (dari Top Up)</h3><div class="tw"><table class="wf-tbl"><thead><tr><th>Kategori</th><th>Gross</th><th>DPP</th><th>VAT 11%</th></tr></thead><tbody>'+tot+rowsH+'</tbody></table></div>'
+      +'<p style="font-size:12px;color:var(--text2);margin:12px 0 0">Konteks sewa <b>Expired/Wipe/Return</b> '+s.period+' (untuk rekonsiliasi prepayment): <b>'+sptRp(s.data.rentTot)+'</b> · '+s.data.rentTrx.toLocaleString('id-ID')+' transaksi.</p>'
+      +flags;
+  }
+  c.innerHTML=banner+controls+body;
+  var pe=document.getElementById('vatP');if(pe)pe.onchange=function(){s.period=this.value;s.data=null;s.err=null;renderVAT();};
+  var pn=document.getElementById('vatPen');if(pn)pn.onchange=function(){vatSetPen(Number(this.value)||0);renderVAT();};
+  var rl=document.getElementById('vatReload');if(rl)rl.onclick=function(){s.data=null;s.err=null;renderVAT();};
   var dl=document.getElementById('vatDl');if(dl)dl.onclick=vatDownload;
 }
 
@@ -1114,6 +1172,7 @@ function render(view){
   else if(view==='upload')renderUpload();
   else if(view==='partners')renderPartners();
   else if(view==='spt')renderSPT();
+  else if(view==='topup')renderTopup();
   else if(view==='vat')renderVAT();
   else{const cs=CASES.find(x=>x.id===view);c.innerHTML=caseHTML(cs);}
   document.getElementById('tbTitle').textContent=TITLES[view]||'Overview';
