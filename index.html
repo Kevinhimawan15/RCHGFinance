@@ -1095,26 +1095,55 @@ function vatCompute(){var s=vatState(),tu=s.data.tu,m=vatMan();
   var b21=cp+b16+b17+b18+b19+b20, b22=bal/1.11-reg-b21;
   return {bal:bal,pkg:pkg,pen:pen,adm:adm,fbal:fbal,fpkg:fpkg,reg:reg,r5:r5,f5:f5,r6:r6,f6:f6,r7:r7,f7:f7,r8:r8,f8:f8,r9:r9,f9:f9,netVat:netVat,cp:cp,b16:b16,b17:b17,b18:b18,b19:b19,b20:b20,b21:b21,b22:b22};
 }
-function vatDownload(){var s=vatState();if(!s.data)return;if(typeof XLSX==='undefined'){alert('Library Excel belum termuat.');return;}
-  var x=vatCompute(),lbl=vatMonthLbl(s.period);
-  var aoa=[['PT Jalan Terus Saja'],['VAT Output Reconciliation'],['For '+lbl],
+function vatReconAoa(){var s=vatState(),x=vatCompute(),lbl=vatMonthLbl(s.period);
+  return [['PT Jalan Terus Saja'],['VAT Output Reconciliation'],['For '+lbl],
     ['','PB-Top Up','PB-Package','Penalty- PB Loss','Other Income (Adm Fee)','Total'],
     ['Top Up Prepaid/Sales'].concat(x.r5,[x.f5]),
     ['DPP '].concat(x.r6,[x.f6]),
     ['VAT 11%'].concat(x.r7,[x.f7]),
     ['(-/-) DPP Sales Belong Franchisee '].concat(x.r8,[x.f8]),
     ['(-/-) VAT Sales Belong Franchisee '].concat(x.r9,[x.f9]),
-    [],[],[],[],
-    ['Rekon Selisih '+lbl],
+    [],[],[],[],['Rekon Selisih '+lbl],
     ['Customer Prepayment (COA)',x.cp],['',x.b16],['',x.b17],['',x.b18],['',x.b19],['',x.b20],
-    ['Selisih '+lbl,x.b21],['',x.b22]];
-  var wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(aoa),'VAT Recon');XLSX.writeFile(wb,'VAT Recon '+s.period+'.xlsx');}
+    ['Selisih '+lbl,x.b21],['',x.b22]];}
+function vatDashHead(){return {'Content-Type':'application/json',apikey:DASH_SB.key,Authorization:'Bearer '+DASH_SB.key};}
+async function vatFetchAllRows(fn,body){var all=[],page=10000,off=0;
+  while(true){var r=await fetch(DASH_SB.url+'/rest/v1/rpc/'+fn+'?order=id.asc&limit='+page+'&offset='+off,{method:'POST',headers:vatDashHead(),body:JSON.stringify(body)});
+    if(!r.ok)throw new Error(fn+' HTTP '+r.status+' '+(await r.text()).slice(0,120));
+    var j=await r.json();all=all.concat(j);if(!Array.isArray(j)||j.length<page)break;off+=page;if(off>1000000)break;}
+  return all;}
+function vatAddSheet(wb,name,rows){var ws=(rows&&rows.length)?XLSX.utils.json_to_sheet(rows):XLSX.utils.aoa_to_sheet([['(tidak ada data)']]);XLSX.utils.book_append_sheet(wb,ws,name);}
+async function vatDownload(){var s=vatState();if(!s.data)return;if(typeof XLSX==='undefined'){alert('Library Excel belum termuat.');return;}
+  var btn=document.getElementById('vatDl'),lbl0=btn?btn.textContent:'';if(btn)btn.disabled=true;
+  function step(t){if(btn)btn.textContent=t;}
+  try{
+    var r=tuMonthRange(s.period);
+    step('Menarik data rent…');
+    var rent=await vatFetchAllRows('get_rent_rows',{date_from:r[0],date_to:r[1],statuses:['expired','wipe','return']});
+    step('Menarik data top up…');
+    var pur=await vatFetchAllRows('get_purchase_rows',{date_from:r[0],date_to:r[1]});
+    step('Menyusun file…');
+    var FR=['cikarang groove','kawisari cafe & eatery - 2nd floor'];
+    var pm=function(x){return String(x['Payment Method']||'').toLowerCase().trim();};
+    var wb=XLSX.utils.book_new();
+    vatAddSheet(wb,'Ori',rent);
+    vatAddSheet(wb,'Regular',rent.filter(function(x){return pm(x)==='balance';}));
+    vatAddSheet(wb,'Package',rent.filter(function(x){return pm(x)==='package';}));
+    vatAddSheet(wb,'Franchisee',rent.filter(function(x){return FR.indexOf(String(x['Borrow Terminal Name']||'').toLowerCase().trim())>=0;}));
+    vatAddSheet(wb,'Receipt Ori',pur);
+    vatAddSheet(wb,'Top Up Balance',pur.filter(function(x){return /recharge balance/i.test(x['Product Name']||'');}));
+    vatAddSheet(wb,'Top Up Package',pur.filter(function(x){return /^paket/i.test(x['Product Name']||'');}));
+    XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(vatReconAoa()),'VAT Recon');
+    XLSX.writeFile(wb,'Sales '+s.period+'.xlsx');
+  }catch(e){alert('Gagal menyiapkan file: '+(e.message||e));}
+  finally{if(btn){btn.disabled=false;btn.textContent=lbl0||'Download (7 sheet + VAT Recon)';}}
+}
 function renderVAT(){
   var s=vatState(),c=document.getElementById('content');
   if(s.data===null&&!s.loading&&!s.err)return vatLoad();
   var m=vatMan();
   function mi(k,ph){return '<input type="number" id="vm_'+k+'" value="'+(m[k]||'')+'" min="0" step="1000" placeholder="'+ph+'" style="width:130px">';}
-  var controls='<div class="filterbar"><label style="font-size:12px;font-weight:700;color:var(--text2)">Periode <input type="month" id="vatP" value="'+s.period+'" style="margin-left:6px"></label><span style="flex:1"></span><button class="btn-sm-outline" id="vatReload">↻ Muat ulang</button><button class="btn2" id="vatDl"'+(s.data?'':' disabled')+'>Download VAT Recon</button></div>';
+  var controls='<div class="filterbar"><label style="font-size:12px;font-weight:700;color:var(--text2)">Periode <input type="month" id="vatP" value="'+s.period+'" style="margin-left:6px"></label><span style="flex:1"></span><button class="btn-sm-outline" id="vatReload">↻ Muat ulang</button><button class="btn2" id="vatDl"'+(s.data?'':' disabled')+'>Download (7 sheet + VAT Recon)</button></div>';
   var manbar='<div class="filterbar" style="gap:12px"><span style="font-size:11.5px;font-weight:800;color:var(--text-dim)">KOMPONEN MANUAL (seperti Laura):</span>'
     +'<label style="font-size:11.5px;font-weight:700;color:var(--text2)">Penalty PB Loss '+mi('pen','0')+'</label>'
     +'<label style="font-size:11.5px;font-weight:700;color:var(--text2)">Other Income (Adm Fee) '+mi('adm','0')+'</label>'
