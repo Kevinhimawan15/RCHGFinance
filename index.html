@@ -1107,12 +1107,23 @@ function vatReconAoa(){var s=vatState(),x=vatCompute(),lbl=vatMonthLbl(s.period)
     ['Customer Prepayment (COA)',x.cp],['',x.b16],['',x.b17],['',x.b18],['',x.b19],['',x.b20],
     ['Selisih '+lbl,x.b21],['',x.b22]];}
 function vatDashHead(){return {'Content-Type':'application/json',apikey:DASH_SB.key,Authorization:'Bearer '+DASH_SB.key};}
-async function vatFetchAllRows(fn,body){var all=[],page=10000,off=0;
-  while(true){var r=await fetch(DASH_SB.url+'/rest/v1/rpc/'+fn+'?order=id.asc&limit='+page+'&offset='+off,{method:'POST',headers:vatDashHead(),body:JSON.stringify(body)});
-    if(!r.ok)throw new Error(fn+' HTTP '+r.status+' '+(await r.text()).slice(0,120));
-    var j=await r.json();all=all.concat(j);if(!Array.isArray(j)||j.length<page)break;off+=page;if(off>1000000)break;}
-  return all;}
-function vatAddSheet(wb,name,rows){var ws=(rows&&rows.length)?XLSX.utils.json_to_sheet(rows):XLSX.utils.aoa_to_sheet([['(tidak ada data)']]);XLSX.utils.book_append_sheet(wb,ws,name);}
+async function vatFetchAllRows(fn,body){
+  var r=await fetch(DASH_SB.url+'/rest/v1/rpc/'+fn+'?limit=300000',{method:'POST',headers:vatDashHead(),body:JSON.stringify(body)});
+  if(!r.ok)throw new Error(fn+' HTTP '+r.status+' '+(await r.text()).slice(0,140));
+  var j=await r.json();if(!Array.isArray(j))throw new Error(fn+': '+(j&&j.message||'respons tak terduga'));return j;}
+function vatAddSheet(wb,name,rows){var ws;
+  if(rows&&rows.length){var keys=[],seen={};rows.forEach(function(r){Object.keys(r).forEach(function(k){if(!seen[k]){seen[k]=1;keys.push(k);}});});
+    var aoa=[keys];rows.forEach(function(r){aoa.push(keys.map(function(k){var v=r[k];return v===undefined?null:v;}));});ws=XLSX.utils.aoa_to_sheet(aoa);}
+  else ws=XLSX.utils.aoa_to_sheet([['(tidak ada data)']]);
+  XLSX.utils.book_append_sheet(wb,ws,name);}
+async function vatUploadExpired(file){
+  if(typeof XLSX==='undefined'){alert('Library Excel belum termuat.');return;}
+  try{var buf=await file.arrayBuffer(),wb=XLSX.read(buf,{type:'array'});
+    var nm=wb.SheetNames.find(function(n){return /expired/i.test(n);})||wb.SheetNames.find(function(n){return /ori/i.test(n);})||wb.SheetNames[0];
+    var rows=XLSX.utils.sheet_to_json(wb.Sheets[nm],{defval:null}).filter(function(r){return String(r['Status']||r['status']||'').toLowerCase().trim()==='expired';});
+    var s=vatState();s.expired=rows;s.expiredFile=file.name;renderVAT();
+    if(!rows.length)alert('Tidak ada baris Status="expired" di file (sheet dibaca: '+nm+'). Pastikan ada kolom Status berisi expired.');
+  }catch(e){alert('Gagal baca file expired: '+(e.message||e));}}
 async function vatDownload(){var s=vatState();if(!s.data)return;if(typeof XLSX==='undefined'){alert('Library Excel belum termuat.');return;}
   var btn=document.getElementById('vatDl'),lbl0=btn?btn.textContent:'';if(btn)btn.disabled=true;
   function step(t){if(btn)btn.textContent=t;}
@@ -1123,13 +1134,15 @@ async function vatDownload(){var s=vatState();if(!s.data)return;if(typeof XLSX==
     step('Menarik data top up…');
     var pur=await vatFetchAllRows('get_purchase_rows',{date_from:r[0],date_to:r[1]});
     step('Menyusun file…');
+    var expired=(vatState().expired)||[];
+    var rentAll=rent.concat(expired); /* return+wipe dari data + expired dari upload manual */
     var FR=['cikarang groove','kawisari cafe & eatery - 2nd floor'];
     var pm=function(x){return String(x['Payment Method']||'').toLowerCase().trim();};
     var wb=XLSX.utils.book_new();
-    vatAddSheet(wb,'Ori',rent);
-    vatAddSheet(wb,'Regular',rent.filter(function(x){return pm(x)==='balance';}));
-    vatAddSheet(wb,'Package',rent.filter(function(x){return pm(x)==='package';}));
-    vatAddSheet(wb,'Franchisee',rent.filter(function(x){return FR.indexOf(String(x['Borrow Terminal Name']||'').toLowerCase().trim())>=0;}));
+    vatAddSheet(wb,'Ori',rentAll);
+    vatAddSheet(wb,'Regular',rentAll.filter(function(x){return pm(x)==='balance';}));
+    vatAddSheet(wb,'Package',rentAll.filter(function(x){return pm(x)==='package';}));
+    vatAddSheet(wb,'Franchisee',rentAll.filter(function(x){return FR.indexOf(String(x['Borrow Terminal Name']||'').toLowerCase().trim())>=0;}));
     vatAddSheet(wb,'Receipt Ori',pur);
     vatAddSheet(wb,'Top Up Balance',pur.filter(function(x){return /recharge balance/i.test(x['Product Name']||'');}));
     vatAddSheet(wb,'Top Up Package',pur.filter(function(x){return /^paket/i.test(x['Product Name']||'');}));
@@ -1143,7 +1156,9 @@ function renderVAT(){
   if(s.data===null&&!s.loading&&!s.err)return vatLoad();
   var m=vatMan();
   function mi(k,ph){return '<input type="number" id="vm_'+k+'" value="'+(m[k]||'')+'" min="0" step="1000" placeholder="'+ph+'" style="width:130px">';}
-  var controls='<div class="filterbar"><label style="font-size:12px;font-weight:700;color:var(--text2)">Periode <input type="month" id="vatP" value="'+s.period+'" style="margin-left:6px"></label><span style="flex:1"></span><button class="btn-sm-outline" id="vatReload">↻ Muat ulang</button><button class="btn2" id="vatDl"'+(s.data?'':' disabled')+'>Download (7 sheet + VAT Recon)</button></div>';
+  var expN=(s.expired&&s.expired.length)||0;
+  var expStat=expN?'<span style="font-size:11.5px;color:var(--brand-deep);font-weight:700">Expired manual: '+expN.toLocaleString('id-ID')+' baris ('+(s.expiredFile||'')+')</span>':'<span style="font-size:11.5px;color:var(--text-dim)">Expired: belum diupload</span>';
+  var controls='<div class="filterbar"><label style="font-size:12px;font-weight:700;color:var(--text2)">Periode <input type="month" id="vatP" value="'+s.period+'" style="margin-left:6px"></label><label class="btn-sm-outline" style="cursor:pointer">Upload Expired<input type="file" id="vatExpFile" accept=".xlsx,.xls" style="display:none"></label>'+expStat+'<span style="flex:1"></span><button class="btn-sm-outline" id="vatReload">↻ Muat ulang</button><button class="btn2" id="vatDl"'+(s.data?'':' disabled')+'>Download (7 sheet + VAT Recon)</button></div>';
   var manbar='<div class="filterbar" style="gap:12px"><span style="font-size:11.5px;font-weight:800;color:var(--text-dim)">KOMPONEN MANUAL (seperti Laura):</span>'
     +'<label style="font-size:11.5px;font-weight:700;color:var(--text2)">Penalty PB Loss '+mi('pen','0')+'</label>'
     +'<label style="font-size:11.5px;font-weight:700;color:var(--text2)">Other Income (Adm Fee) '+mi('adm','0')+'</label>'
@@ -1179,6 +1194,7 @@ function renderVAT(){
   c.innerHTML=banner+controls+body;
   var pe=document.getElementById('vatP');if(pe)pe.onchange=function(){s.period=this.value;s.data=null;s.err=null;renderVAT();};
   ['pen','adm','fbal','fpkg'].forEach(function(k){var el=document.getElementById('vm_'+k);if(el)el.onchange=function(){vatSetMan(k,Number(this.value)||0);renderVAT();};});
+  var ef=document.getElementById('vatExpFile');if(ef)ef.onchange=function(){if(this.files.length)vatUploadExpired(this.files[0]);};
   var rl=document.getElementById('vatReload');if(rl)rl.onclick=function(){s.data=null;s.err=null;renderVAT();};
   var dl=document.getElementById('vatDl');if(dl)dl.onclick=vatDownload;
 }
