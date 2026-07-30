@@ -199,6 +199,26 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);-webkit-font
 .seg{border:none;background:var(--surface);padding:7px 13px;font-size:12px;font-weight:700;color:var(--text2);cursor:pointer;font-family:var(--font)}
 .seg.on{background:var(--text);color:#fff}
 .perhint{font-size:11px;color:var(--text-dim)}
+.filterbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:14px}
+.filterbar select,.filterbar input{border:1px solid var(--border2);border-radius:8px;padding:7px 10px;font-size:12.5px;font-family:var(--font);color:var(--text);background:var(--surface)}
+.filterbar input{min-width:200px}
+.dn-form{display:grid;grid-template-columns:1fr 1fr;gap:12px 14px}
+.dn-form label{display:flex;flex-direction:column;gap:5px;font-size:11.5px;font-weight:700;color:var(--text2);min-width:0}
+.dn-form label.full{grid-column:1 / -1}
+.dn-form input,.dn-form select{width:100%;min-width:0;max-width:100%;border:1px solid var(--border2);border-radius:8px;padding:8px 10px;font-size:13px;font-family:var(--font);color:var(--text);background:var(--surface)}
+.dn-preview{margin-top:16px;background:var(--surface2);border:1px dashed var(--border2);border-radius:10px;padding:12px 14px;font-size:12px;color:var(--text2)}
+.dn-preview b{font-family:var(--mono);font-size:15px;color:var(--brand-deep)}
+.dn-err{margin-top:10px;background:#fdecec;border:1px solid #f5b5b5;color:#a12622;border-radius:8px;padding:8px 12px;font-size:12px;font-weight:600}
+.spt-chk{display:inline-flex;align-items:center;gap:5px;font-size:12.5px;font-weight:600;color:var(--text2);cursor:pointer}
+.filterbar input[type="checkbox"]{min-width:0;width:auto;padding:0;margin:0;border:0;accent-color:var(--brand)}
+.spt-h{font-size:13px;font-weight:800;color:var(--text);margin:22px 0 8px}
+.wf-tbl tr.ttl td{background:var(--surface2);border-top:2px solid var(--border2)}
+.atag{display:inline-block;font-size:9px;font-weight:800;letter-spacing:.03em;text-transform:uppercase;color:#a06600;background:#fff3d6;border:1px solid #f0d18a;border-radius:5px;padding:1px 5px;margin-left:5px;vertical-align:middle}
+.konfirm{background:#fffaf0;border:1px solid #f0d18a;border-left:4px solid #d98a00;border-radius:12px;padding:14px 16px;margin-bottom:16px}
+.konfirm h4{font-size:12.5px;font-weight:800;color:#8a5a00;margin:0 0 9px}
+.konfirm ol{margin:0;padding-left:18px}
+.konfirm li{font-size:12px;color:var(--text2);margin:6px 0;line-height:1.5}
+.konfirm li b{color:var(--text)}
 .hist-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 16px;box-shadow:var(--sh-sm);cursor:pointer;transition:transform .12s,border-color .12s}
 .hist-card:hover{transform:translateY(-2px);border-color:var(--brand)}
 .hc-top{display:flex;justify-content:space-between;align-items:center;font-size:14px}
@@ -269,18 +289,19 @@ th.sortable.on .ar{opacity:1;color:var(--brand-deep)}
         <div class="menu-lbl">Menu</div>
         <div class="nav-item active" data-view="overview"><span class="dot"></span>Overview</div>
         <div class="nav-item" data-view="mc"><span class="dot"></span>Monitoring Control</div>
+        <div class="nav-item" data-view="docnum"><span class="dot"></span>Penomoran Dokumen</div>
         <div class="menu-lbl">Data Revenue Sharing</div>
         <div class="nav-item" data-view="upload"><span class="dot"></span>Upload &amp; Combine</div>
         <div class="nav-item" data-view="partners"><span class="dot"></span>Partner Active/Inactive</div>
         <div class="nav-item" data-view="terminal"><span class="dot"></span>Master Terminal (RchgOps)</div>
+        <div class="menu-lbl">Data Sales (SPT PPN)</div>
+        <div class="nav-item" data-view="spt"><span class="dot"></span>Data Expired/Wipe/Return</div>
         <div class="menu-lbl">Case Prioritas</div>
         <div class="nav-item" data-view="rs"><span class="dot"></span>Revenue Sharing</div>
         <div class="nav-item" data-view="sr"><span class="dot"></span>Sales Report SPT PPN</div>
         <div class="nav-item" data-view="bp"><span class="dot"></span>Bukti Potong</div>
         <div class="menu-lbl">Referensi</div>
         <div class="nav-item" data-view="wf"><span class="dot"></span>Workflow &amp; Proses</div>
-        <a class="nav-item nav-ext" href="analisis-bisnis.html" target="_blank"><span class="dot"></span>Analisis Bisnis ↗</a>
-        <a class="nav-item nav-ext" href="panduan-elisitasi.html" target="_blank"><span class="dot"></span>Panduan Elisitasi ↗</a>
       </div>
       <div class="sb-foot">Data-grounded · metrik kosong menunggu data nyata. v0 · scope 3 case.</div>
     </nav>
@@ -338,6 +359,8 @@ const CASES=[
   asis:'Download data dari Dashboard Recharge (menu Revenue Sharing). Karena batas fetch 500 baris, unduh dalam ≥2 batch (mis. A–M &amp; N–Z) lalu digabung. Pilih partner aktif secara manual (belum ada flag Active/Inactive) untuk periode yang benar → generate &amp; kirim report. Report Director Sign disusun manual via template Word.',
   target:[['R-RS1','Pemilihan partner aktif otomatis dari master data (flag Active/Inactive).'],['R-RS2','Auto-generate draft RS report &amp; Berita Acara sesuai template, siap Director Signing.']],
   pains:['Batas fetch 500 baris → unduh ≥2 batch','Belum ada flag Active/Inactive → seleksi manual','Risiko partner aktif terlewat','Draft Word satu per satu'],
+  facts:['Sumber data: admin.recharge.sh/dashboard/transaction/revenue-sharing','Batas fetch 500 baris → unduh ≥2 batch (mis. A–M, N–Z) lalu digabung','Kolom: Partner Name · Generate On · Start/End Date · Total Revenue · Total VAT · Total Tax · Total · Status (success/failed)','Belum ada flag Active/Inactive di data → status kini ditentukan lewat Master Terminal (RchgOps)','Komponen Berita Acara: bagi hasil 30% · VAT 11% · WHT Final Pasal 4(2) 10% · Nett Amount','Nomor surat BA: [no urut]/JTS/DLL/FIN/[bulan Romawi terbit]/[tahun] — DLL = Dan Lain-lain, FIN = Finance; no urut = counter berjalan per tahun (registry Penomoran Dokumen)','Berita Acara dibuat finance HANYA untuk partner tertentu (tidak semua partner)','Berita Acara wajib ditandatangani Evi Damayanti (mba Evi) selaku Direktur PT Jalan Terus Saja sebelum dikirim ke partner'],
+  who:'PIC: Dyo (Finance) · Penandatangan: Evi Damayanti (Direktur) · Proposal ditujukan ke Pak Daniel',
  },
  {id:'sr',no:2,name:'Sales Report untuk SPT PPN',wf:'terkait WF6',eff:'±½ hari / bulan',
   kpis:[
@@ -349,6 +372,8 @@ const CASES=[
   asis:'Export transaksi status Expired / Wipe / Return dari Dashboard → merge 3 dataset → cleaning &amp; validasi → grouping per kategori revenue. Manual di Excel.',
   target:[['R-SR1','Sistem menghasilkan Sales Report SPT PPN otomatis (klasifikasi kategori + Gross Sales/DPP/VAT), format setara VAT Recon.']],
   pains:['Export &amp; merge manual','Makan waktu tiap awal bulan','Potensi human error saat merge'],
+  facts:['Export transaksi status Expired / Wipe / Return dari Dashboard','Gabung 3 dataset jadi 1 master → cleaning &amp; validasi','Grouping per kategori revenue: Top Up · Package · Penalty PB Loss · Other Income','Hitung Gross Sales · DPP · VAT → output format setara VAT Recon untuk pelaporan SPT PPN','Belum tercatat sebagai aktivitas tersendiri di Katalog 26 aktivitas (proses distinct)'],
+  who:'PIC: Laura (Finance)',
  },
  {id:'bp',no:3,name:'Tax Slip / Bukti Potong Distribution',wf:'WF11',eff:'manual · on-request',
   kpis:[
@@ -360,9 +385,11 @@ const CASES=[
   asis:'Finance membuat Bukti Potong setelah pemotongan pajak → disimpan manual → dikirim via email hanya bila partner meminta (cari file per masa pajak).',
   target:[['R-BP1','Distribusi Bukti Potong otomatis ke email partner terdaftar setelah terbit, dengan log status Sent/Failed untuk monitoring &amp; audit.']],
   pains:['Bergantung permintaan partner','Cari &amp; kirim satu per satu','Miss communication status terima'],
+  facts:['Bukti Potong dibuat setelah proses pemotongan pajak (PPh) selesai','Disimpan manual; dikirim via email hanya bila partner meminta (dicari per masa pajak)','Diterbitkan via Coretax sejak Januari 2025 (per Job Description)','Sering terjadi miss antara partner &amp; Recharge soal status penerimaan'],
+  who:'PIC: Finance · Terkait: Konsultan Pajak (SPT Masa dilaporkan lebih dulu)',
  },
 ];
-const TITLES={overview:'Overview',mc:'Monitoring Control',upload:'Upload & Combine Revenue Sharing',partners:'Partner Active / Inactive',terminal:'Master Terminal (RchgOps)',sr:'Sales Report untuk SPT PPN',rs:'Revenue Sharing Report',bp:'Bukti Potong Distribution',wf:'Workflow & Proses'};
+const TITLES={overview:'Overview',mc:'Monitoring Control',docnum:'Penomoran Dokumen Eksternal',upload:'Upload & Combine Revenue Sharing',partners:'Partner Active / Inactive',terminal:'Master Terminal (RchgOps)',spt:'Sales SPT PPN — Data Expired/Wipe/Return',sr:'Sales Report untuk SPT PPN',rs:'Revenue Sharing Report',bp:'Bukti Potong Distribution',wf:'Workflow & Proses'};
 
 /* ---------- Monitoring Control: work tracker for the 3 priority cases ---------- */
 const CASE_STEPS=[
@@ -373,7 +400,7 @@ const CASE_STEPS=[
    'Seleksi partner Active (manual — belum ada flag)',
    'Pilih partner aktif + periode yang benar',
    'Generate & kirim Revenue Sharing report ke partner',
-   'Report / Berita Acara → Director Signing → kirim (bila diminta)',
+   'Berita Acara (hanya partner tertentu) → ditandatangani mba Evi (Direktur) → kirim ke partner',
  ]},
  {key:'sr',name:'Sales Report untuk SPT PPN',steps:[
    'Export transaksi Expired / Wipe / Return dari Dashboard',
@@ -411,7 +438,7 @@ function openHist(i){
   });
   showModal(body);
 }
-var SORT={up:{col:null,dir:1},pt:{col:null,dir:1},tm:{col:null,dir:1}};
+var SORT={up:{col:null,dir:1},pt:{col:null,dir:1},tm:{col:null,dir:1},dn:{col:null,dir:1},spc:{col:null,dir:1},spd:{col:null,dir:1}};
 function sortRows(rows,col,dir,numeric){if(!col)return rows;return rows.slice().sort((a,b)=>{let x=a[col],y=b[col];if(numeric){x=parseFloat(String(x).replace(/[^0-9.-]/g,''))||0;y=parseFloat(String(y).replace(/[^0-9.-]/g,''))||0;}else{x=String(x).toLowerCase();y=String(y).toLowerCase();}return x<y?-dir:x>y?dir:0;});}
 function arrow(st,col){return '<span class="ar">'+(st.col===col?(st.dir>0?'▲':'▼'):'↕')+'</span>';}
 function renderMC(){
@@ -451,13 +478,14 @@ function fnodeHTML(n){const cls=n.kind==='start'?'f-start':n.kind==='end'?'f-end
 function flowRender(nodes){let h='';nodes.forEach((n,i)=>{if(i>0)h+='<div class="farrow">↓</div>';if(n.branch)h+=`<div class="fbranch"><div class="fbcol"><div class="fblabel">${n.branch.ya.lbl}</div>${fnodeHTML(n.branch.ya)}</div><div class="fbcol"><div class="fblabel">${n.branch.tidak.lbl}</div>${fnodeHTML(n.branch.tidak)}</div></div>`;else h+=fnodeHTML(n);});return `<div class="flow">${h}</div>`;}
 const FLOWS={
  sr:[
-   {kind:'start',label:'Buka Dashboard Recharge → Transaction'},
-   {kind:'proc',label:'Export transaksi status Expired / Wipe / Return'},
-   {kind:'proc',label:'Gabung 3 dataset jadi 1 master',warn:'Export / merge / hitung manual di Excel → potensi human error'},
-   {kind:'proc',label:'Cleaning & validasi data'},
-   {kind:'proc',label:'Grouping per kategori revenue',sub:'Top Up · Package · Penalty PB Loss · Other Income'},
-   {kind:'proc',label:'Hitung Gross Sales / DPP / VAT'},
-   {kind:'end',label:'Susun report format VAT Recon → SPT PPN'},
+   {kind:'start',label:'Buka halaman "Data Expired/Wipe/Return"',sub:'sumber: RchgDashboard rent_report (bukan export manual lagi)'},
+   {kind:'proc',label:'Pilih periode (bulan) + status Expired / Wipe / Return'},
+   {kind:'proc',label:'Sistem tarik & agregat data via RPC',sub:'get_rent_summary (harian) + get_rent_city_range (per kota)'},
+   {kind:'dec',label:'Data sudah direkonsiliasi vs export manual?',warn:'Rekonsiliasi 1× untuk validasi sumber — masih pending'},
+   {branch:{ya:{lbl:'Ya',label:'Lanjut pakai data dashboard'},tidak:{lbl:'Belum',label:'Bandingkan total dulu vs export manual finance (1 periode)'}}},
+   {kind:'proc',label:'Hitung Gross → DPP → PPN (tarif 11%)',warn:'Rumus/tarif PPN ASUMSI → konfirmasi finance/konsultan pajak'},
+   {kind:'proc',label:'Export hasil (Excel) → lampiran VAT Recon'},
+   {kind:'end',label:'Lapor SPT PPN (Coretax)'},
  ],
  rs:[
    {kind:'start',label:'Buka Dashboard Recharge → Revenue Sharing',sub:'admin.recharge.sh/dashboard/transaction/revenue-sharing'},
@@ -466,8 +494,8 @@ const FLOWS={
    {kind:'dec',label:'Seleksi partner Active',warn:'Belum ada flag Active/Inactive → dipilih manual'},
    {kind:'proc',label:'Pilih partner aktif + periode yang benar'},
    {kind:'proc',wf:'WF1',label:'Generate & kirim Revenue Sharing report ke partner'},
-   {kind:'dec',label:'Butuh dokumen di-sign?'},
-   {branch:{ya:{lbl:'Ya',label:'Report / Berita Acara → Director Signing → dikirim ke partner oleh mba Evi'},tidak:{lbl:'Tidak',label:'Selesai — cukup report dari dashboard'}}},
+   {kind:'dec',label:'Partner termasuk yang wajib Berita Acara?',warn:'Berita Acara dibuat finance HANYA untuk partner tertentu'},
+   {branch:{ya:{lbl:'Ya',label:'Finance susun Berita Acara → ditandatangani mba Evi (Direktur PT JTS) → dikirim ke partner'},tidak:{lbl:'Tidak',label:'Cukup Revenue Sharing report dari dashboard (tanpa Berita Acara)'}}},
    {kind:'end',wf:'WF2',label:'Lanjut: Bill Import Revenue Sharing ke Zoho'},
  ],
  bp:[
@@ -505,19 +533,21 @@ function caseHTML(c){
   const tiles=c.kpis.map(k=>`<div class="tile ${k.cls}"><div class="tv">${k.v}</div><div class="tl">${k.l}</div><div class="tt">${k.tag}</div></div>`).join('');
   const tgt=c.target.map(t=>`<p style="margin-bottom:6px"><span class="reqpill">${t[0]}</span>${t[1]}</p>`).join('');
   const pains=c.pains.map(p=>`<span class="pain">${p}</span>`).join('');
-  return `<div class="datanote">Status: <b>Manual</b> → target <b>Otomatis</b>. Angka "—" belum tersedia (menunggu data), bukan diasumsikan. Effort adalah yang disebut tim.</div>
+  const facts=(c.facts||[]).map(f=>`<li>${f}</li>`).join('');
+  return `<div class="datanote">Status: <b>Manual</b> → target <b>Otomatis</b>. Semua poin di halaman ini bersumber dari <b>dokumen workflow, file data, &amp; elisitasi stakeholder</b> — tidak ada asumsi. Angka "—" = data belum tersedia (bukan ditebak).</div>
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:16px">
-      ${badges()} <span class="wfref">${c.wf}</span>
+      ${badges()} <span class="wfref">${c.wf}</span> <span class="perhint">Effort disebut tim: <b>${c.eff}</b></span>
     </div>
-    <div class="sec-lbl">KPI (kerangka — terisi saat data tersedia)</div>
-    <div class="kpis">${tiles}</div>
-    <div class="split">
+    <div class="sec-lbl">Fakta terverifikasi (dari data &amp; stakeholder)</div>
+    <div class="blk"><ul style="margin:0;padding-left:18px;font-size:13px;color:var(--text2);line-height:1.75">${facts}</ul>${c.who?`<div style="margin-top:11px;padding-top:10px;border-top:1px solid var(--border);font-size:12px;color:var(--text-muted)"><b>Pihak terkait:</b> ${c.who}</div>`:''}</div>
+    <div class="split" style="margin-top:16px">
       <div class="blk"><h4>Metode saat ini (As-Is)</h4><p>${c.asis}</p></div>
       <div class="blk target"><h4>Target otomatisasi</h4>${tgt}</div>
     </div>
     <div class="sec-lbl">Titik masalah (dari elisitasi)</div>
     <div class="pains">${pains}</div>
-    <a class="link" href="analisis-bisnis.html#scope" target="_blank">Lihat gap analysis detail (08.D) →</a>`;
+    <div class="sec-lbl">KPI (kerangka — terisi saat data tersedia)</div>
+    <div class="kpis">${tiles}</div>`;
 }
 
 function wfHTML(){
@@ -572,6 +602,9 @@ async function rsCombine(files){
    window.__MT_ROWS diisi oleh integrasi RchgOps; terdaftar (terminal aktif) = Active. */
 /* RchgOps Supabase (read-only) — Master Terminal source. Anon key (public). */
 const OPS_SB={url:'https://xuuaoxekzkjgjqfpmiuk.supabase.co',key:'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh1dWFveGVremtqZ2pxZnBtaXVrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY2NTA5OTcsImV4cCI6MjA5MjIyNjk5N30.icp9I6gaX7kxNXsG-cOudxzOROxMMeJBEhmN2xhII2s'};
+/* RchgDashboard Supabase (read-only, via RPC) — sumber transaksi rent_report (Expired/Wipe/Return). Anon key (public). Baca hanya lewat RPC SECURITY DEFINER (tabel di-RLS). */
+const DASH_SB={url:'https://abkcxlwonxrzlyuxxxvj.supabase.co',key:'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFia2N4bHdvbnhyemx5dXh4eHZqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkxNTYyMTEsImV4cCI6MjA5NDczMjIxMX0._pn2QP1Pxt1wqMLMOaAE63DnG3mQfzLe-jFlhfHozCo'};
+function dashRpc(fn,body){return fetch(DASH_SB.url+'/rest/v1/rpc/'+fn,{method:'POST',headers:{'Content-Type':'application/json',apikey:DASH_SB.key,Authorization:'Bearer '+DASH_SB.key},body:JSON.stringify(body)}).then(function(r){return r.json().then(function(j){return {ok:r.ok,status:r.status,data:j};});});}
 async function fetchMasterTerminal(force){
   if(window.__MT_ROWS&&!force)return window.__MT_ROWS;
   const sel='terminal_id,terminal_name,partner_name,deployment_status,is_active,region,province,district';
@@ -657,21 +690,180 @@ function renderPartners(){
     return {name:p,period:rsPeriod(r),flag:flag,cls:cls};
   });
   const sorted=sortRows(disp,SORT.pt.col,SORT.pt.dir,false);
+  if(['all','active','inactive'].indexOf(window.__PT_FILTER)<0)window.__PT_FILTER='all';
+  const pf=window.__PT_FILTER;
   const kpi=[
-    ['Partner (RS success)',uniq.length,'dari Upload & Combine',''],
-    ['Active',mt?active:'—',mt?'terdaftar di Master Terminal':'memuat…',mt?'var(--brand-deep)':''],
-    ['Inactive',mt?inactive:'—',mt?'tak terdaftar':'',mt&&inactive?'var(--red)':''],
-  ].map(k=>`<div class="kpi"><div class="kpi-lbl">${k[0]}</div><div class="kpi-val" style="${k[3]?'--c:'+k[3]:''}">${k[1]}</div><div class="kpi-sub">${k[2]}</div></div>`).join('');
+    ['Partner (RS success)',uniq.length,'dari Upload & Combine','','all'],
+    ['Active',mt?active:'—',mt?'terdaftar di Master Terminal':'memuat…',mt?'var(--brand-deep)':'','active'],
+    ['Inactive',mt?inactive:'—',mt?'tak terdaftar':'',mt&&inactive?'var(--red)':'','inactive'],
+  ].map(k=>`<div class="kpi click ${pf===k[4]?'active':''}" data-filter="${k[4]}"><div class="kpi-lbl">${k[0]}</div><div class="kpi-val" style="${k[3]?'--c:'+k[3]:''}">${k[1]}</div><div class="kpi-sub">${k[2]}</div></div>`).join('');
   const sync=mt?`<b>Master Terminal tersinkron dari RchgOps</b> — ${mt.length} baris terminal.`:(window.__MT_FETCHING?'<b>Memuat Master Terminal dari RchgOps…</b>':'<b>Master Terminal belum termuat</b> — buka tab Master Terminal atau cek koneksi.');
   const note=`<div class="datanote">Menampilkan <b>seluruh partner</b> dari Upload &amp; Combine, dibandingkan dengan <b>Master Terminal</b> — dikelola Ops di RchgOps &amp; <b>ditarik langsung dari sana</b> (finance tidak upload). <b>Terdaftar di Master Terminal = Active</b>; tidak terdaftar = Inactive. Cocok by Partner Name (beda ejaan bisa keliru Inactive → jaga konsistensi nama). ${sync}</div>`;
   const th=(c,lbl)=>`<th class="sortable ${SORT.pt.col===c?'on':''}" data-c="${c}">${lbl}${arrow(SORT.pt,c)}</th>`;
-  const body=sorted.map(r=>`<tr><td><b>${r.name}</b></td><td style="font-family:var(--mono);font-size:11.5px;color:var(--text-dim)">${r.period}</td><td><span class="tagb ${r.cls}">${r.flag}</span></td></tr>`).join('');
+  const shown=pf==='all'?sorted:sorted.filter(r=>r.flag.toLowerCase()===pf);
+  const flab={all:'Semua',active:'Active',inactive:'Inactive'};
+  const body=shown.map(r=>`<tr><td><b>${r.name}</b></td><td style="font-family:var(--mono);font-size:11.5px;color:var(--text-dim)">${r.period}</td><td><span class="tagb ${r.cls}">${r.flag}</span></td></tr>`).join('');
   document.getElementById('content').innerHTML=
    `${note}
     <div class="kpi-row" style="grid-template-columns:repeat(3,1fr)">${kpi}</div>
-    <div class="sec-lbl">Daftar Partner (${uniq.length}) · klik header untuk sort</div>
+    <div class="sec-lbl">Daftar Partner — ${flab[pf]} (${shown.length}) · klik kartu KPI untuk filter · klik header untuk sort</div>
     <div class="tw"><table class="wf-tbl"><thead><tr>${th('name','Partner')}${th('period','Periode')}${th('flag','Status')}</tr></thead><tbody>${body||'<tr><td colspan=3>Belum ada data — combine dulu di halaman Upload.</td></tr>'}</tbody></table></div>`;
+  document.querySelectorAll('#content .kpi.click').forEach(k=>k.onclick=()=>{window.__PT_FILTER=k.dataset.filter;renderPartners();});
   document.querySelectorAll('#content .wf-tbl th.sortable').forEach(t=>t.onclick=()=>{const c=t.dataset.c;if(SORT.pt.col===c)SORT.pt.dir*=-1;else{SORT.pt.col=c;SORT.pt.dir=1;}renderPartners();});
+}
+
+/* ---------- Penomoran Dokumen Eksternal (DB: Supabase doc_numbering) ---------- */
+const DN_SQL='create table if not exists public.doc_numbering (\n  id uuid primary key default gen_random_uuid(),\n  tanggal text, pic text, issued_to text,\n  no_urut int, perusahaan text, jenis text, departemen text,\n  bulan text, tahun int, nomor_surat text,\n  created_at timestamptz default now()\n);\nalter table public.doc_numbering enable row level security;\ncreate policy "doc_numbering anon rw" on public.doc_numbering\n  for all to anon using (true) with check (true);';
+const DN_JENIS=[['MOU','Memorandum Of Understanding'],['PKS','Perjanjian Kerjasama'],['NDA','Non Disclosure Agreement'],['REF','Referensi'],['DLL','Dan Lain-lain'],['QUO','Quotation']];
+const DN_DEPT=[['MAR','Marketing'],['SAQ','Site Acquisition'],['HRGA','Human Resources & General Affair'],['TECH','Technology'],['FIN','Finance'],['BD','Business Development'],['OPS','Operational']];
+const DN_ROMAN=['','I','II','III','IV','V','VI','VII','VIII','IX','X','XI','XII'];
+function dnPad(n){return String(n).padStart(3,'0');}
+function dnNextUrut(year){var m=0;(window.__DN_ROWS||[]).forEach(function(r){if(r.jenis&&String(r.jenis).trim()&&String(r.tahun)===String(year)){var v=parseInt(r.no_urut)||0;if(v>m)m=v;}});return m+1;}
+function dnBuildNomor(urut,jenis,dept,bulanRoman,tahun){return dnPad(urut)+'/JTS/'+jenis+'/'+dept+'/'+bulanRoman+'/'+tahun;}
+function dnForm(){
+  var t=new Date(), todayStr=t.getFullYear()+'-'+String(t.getMonth()+1).padStart(2,'0')+'-'+String(t.getDate()).padStart(2,'0');
+  var jopt=DN_JENIS.map(function(x){return '<option value="'+x[0]+'">'+x[0]+' — '+x[1]+'</option>';}).join('');
+  var dopt=DN_DEPT.map(function(x){return '<option value="'+x[0]+'"'+(x[0]==='FIN'?' selected':'')+'>'+x[0]+' — '+x[1]+'</option>';}).join('');
+  showModal(
+    '<h3 style="margin:0 0 4px">Buat Nomor Surat Baru</h3>'
+    +'<p style="font-size:12px;color:var(--text-dim);margin:0 0 16px">No urut, JTS, bulan (Romawi) & tahun terisi otomatis dari tanggal. Format: <code>[No]/JTS/[Jenis]/[Dept]/[Bln]/[Thn]</code></p>'
+    +'<div class="dn-form">'
+    +'<label>Tanggal<input type="date" id="fTgl" value="'+todayStr+'"></label>'
+    +'<label>PIC<input type="text" id="fPic" placeholder="nama PIC"></label>'
+    +'<label>Jenis Surat<select id="fJns">'+jopt+'</select></label>'
+    +'<label>Departemen<select id="fDep">'+dopt+'</select></label>'
+    +'<label class="full">Issued To / Perihal<input type="text" id="fTo" placeholder="mis. Berita Acara Revenue Sharing — Partner X"></label>'
+    +'</div>'
+    +'<div class="dn-preview">Nomor Surat: <b id="fPrev">—</b></div>'
+    +'<div id="fErr" class="dn-err" style="display:none"></div>'
+    +'<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:18px"><button class="btn-sm-outline" onclick="closeModal()">Batal</button><button class="btn2" id="fSubmit">Buat Surat</button></div>'
+  );
+  function upd(){
+    var tgl=document.getElementById('fTgl').value;
+    var yr=tgl?parseInt(tgl.slice(0,4)):t.getFullYear(), mo=tgl?parseInt(tgl.slice(5,7)):(t.getMonth()+1);
+    var urut=dnNextUrut(yr);
+    document.getElementById('fPrev').textContent=dnBuildNomor(urut,document.getElementById('fJns').value,document.getElementById('fDep').value,DN_ROMAN[mo]||'',yr);
+  }
+  ['fTgl','fJns','fDep'].forEach(function(id){document.getElementById(id).onchange=upd;});
+  upd();
+  document.getElementById('fSubmit').onclick=dnCreate;
+}
+async function dnCreate(){
+  var tgl=document.getElementById('fTgl').value, pic=document.getElementById('fPic').value.trim();
+  var jns=document.getElementById('fJns').value, dep=document.getElementById('fDep').value, to=document.getElementById('fTo').value.trim();
+  var err=document.getElementById('fErr'); function fail(m){err.style.display='block';err.textContent=m;}
+  err.style.display='none';
+  if(!tgl)return fail('Tanggal wajib diisi.');
+  if(!to)return fail('Issued To / Perihal wajib diisi.');
+  var yr=parseInt(tgl.slice(0,4)), mo=parseInt(tgl.slice(5,7)), urut=dnNextUrut(yr), bln=DN_ROMAN[mo]||'';
+  var nomor=dnBuildNomor(urut,jns,dep,bln,yr);
+  var rec={tanggal:tgl,pic:pic||null,issued_to:to,no_urut:urut,perusahaan:'JTS',jenis:jns,departemen:dep,bulan:bln,tahun:yr,nomor_surat:nomor};
+  var btn=document.getElementById('fSubmit');btn.disabled=true;btn.textContent='Menyimpan…';
+  try{
+    await dnInsert([rec]);
+    window.__DN_ROWS=null;window.__DN_ERR=null;window.__DN_F={tahun:'',jenis:'',dep:'',q:''};SORT.dn={col:'no_urut',dir:-1};
+    closeModal();renderDocNum();
+    setTimeout(function(){alert('Nomor surat berhasil dibuat:\n\n'+nomor);},60);
+  }catch(e){btn.disabled=false;btn.textContent='Buat Surat';fail('Gagal menyimpan: '+e.message);}
+}
+async function dnFetch(){
+  var all=[],from=0,page=1000;
+  while(true){
+    var r=await fetch(SB.url+'/rest/v1/doc_numbering?select=*&order=tahun.desc,no_urut.desc',{headers:sbHead({'Range-Unit':'items','Range':from+'-'+(from+page-1)})});
+    if(r.status===404||r.status===400)return {err:'notable'};
+    if(!r.ok)return {err:'HTTP '+r.status};
+    var j=await r.json(); all=all.concat(j);
+    if(j.length<page)break; from+=page; if(from>100000)break;
+  }
+  return {rows:all};
+}
+async function dnInsert(recs){
+  for(var i=0;i<recs.length;i+=500){
+    var chunk=recs.slice(i,i+500);
+    var r=await fetch(SB.url+'/rest/v1/doc_numbering',{method:'POST',headers:sbHead({Prefer:'return=minimal'}),body:JSON.stringify(chunk)});
+    if(!r.ok)throw new Error('HTTP '+r.status+': '+(await r.text()).slice(0,140));
+  }
+}
+async function dnImportFile(file){
+  if(typeof XLSX==='undefined'){alert('Library Excel belum termuat (perlu internet).');return;}
+  var buf=await file.arrayBuffer(); var wb=XLSX.read(buf,{type:'array',cellDates:true}); var recs=[];
+  wb.SheetNames.forEach(function(sn){
+    if(!/^\d{4}$/.test(sn))return;
+    var arr=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,defval:''});
+    var hi=-1; for(var i=0;i<Math.min(arr.length,8);i++){ if((arr[i]||[]).some(function(cc){return String(cc).trim()==='Tanggal';})){hi=i;break;} }
+    if(hi<0)return;
+    var hdr=arr[hi].map(function(h){return String(h).trim();}); function ix(n){return hdr.indexOf(n);}
+    var iT=ix('Tanggal'),iP=ix('PIC'),iTo=ix('Issued To'),iNo=ix('Nomor Urut Surat'),iC=ix('Nama Perusahaan'),iJ=ix('Jenis Surat'),iD=ix('Departemen'),iB=ix('Bulan'),iY=ix('Tahun'),iN=ix('Nomor Surat');
+    for(var k=hi+1;k<arr.length;k++){
+      var row=arr[k]; if(!row)continue;
+      var nomor=String(row[iN]==null?'':row[iN]).trim(); var noRaw=iNo>=0?row[iNo]:'';
+      if(!nomor && (noRaw===''||noRaw==null))continue;
+      var jenisV=String(iJ>=0?(row[iJ]==null?'':row[iJ]):'').trim();
+      if(!jenisV)continue; /* skip baris kosong / slot nomor yang belum dipakai (jenis kosong) */
+      var tgl=row[iT], tglStr='';
+      if(tgl instanceof Date && !isNaN(tgl)){tglStr=tgl.getFullYear()+'-'+String(tgl.getMonth()+1).padStart(2,'0')+'-'+String(tgl.getDate()).padStart(2,'0');}
+      else tglStr=String(tgl==null?'':tgl).trim();
+      recs.push({tanggal:tglStr||null,pic:String(row[iP]==null?'':row[iP]).trim()||null,issued_to:String(row[iTo]==null?'':row[iTo]).trim()||null,no_urut:parseInt(String(noRaw).replace(/[^0-9]/g,''))||null,perusahaan:iC>=0?(String(row[iC]==null?'':row[iC]).trim()||null):null,jenis:jenisV,departemen:String(row[iD]==null?'':row[iD]).trim()||null,bulan:String(row[iB]==null?'':row[iB]).trim()||null,tahun:parseInt(String(iY>=0?row[iY]:'').replace(/[^0-9]/g,''))||parseInt(sn)||null,nomor_surat:nomor||null});
+    }
+  });
+  if(!recs.length){alert('Tidak ada baris terbaca.');return;}
+  if(!confirm('Import '+recs.length+' baris ke database? (data existing tidak dihapus)'))return;
+  try{await dnInsert(recs);window.__DN_ROWS=null;window.__DN_ERR=null;alert('Berhasil import '+recs.length+' baris.');renderDocNum();}
+  catch(e){alert('Gagal import: '+e.message);}
+}
+function dnDistinct(rows,k){var s={};rows.forEach(function(r){if(r[k]!=null&&r[k]!=='')s[r[k]]=1;});return Object.keys(s);}
+function renderDocNum(){
+  var c=document.getElementById('content');
+  if(!window.__DN_ROWS){
+    if(window.__DN_ERR==='notable'){
+      c.innerHTML='<div class="datanote"><b>Tabel <code>doc_numbering</code> belum ada di Supabase.</b> Jalankan SQL berikut di Supabase → SQL Editor, lalu klik Muat ulang. Setelah itu klik <b>Import Excel</b> untuk memuat data awal dari file penomoran.</div><pre style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px;font-size:11.5px;overflow:auto;white-space:pre-wrap">'+DN_SQL+'</pre><button class="btn2" id="dnReload">↻ Muat ulang</button>';
+      document.getElementById('dnReload').onclick=function(){window.__DN_ERR=null;renderDocNum();};
+      return;
+    }
+    if(window.__DN_ERR){c.innerHTML='<div class="datanote"><b>Gagal memuat penomoran.</b> '+window.__DN_ERR+'</div><button class="btn2" id="dnReload">↻ Coba lagi</button>';document.getElementById('dnReload').onclick=function(){window.__DN_ERR=null;renderDocNum();};return;}
+    c.innerHTML='<div class="datanote">Memuat penomoran dokumen dari database…</div>';
+    dnFetch().then(function(res){if(res.err){window.__DN_ERR=res.err;}else{window.__DN_ROWS=res.rows;}renderDocNum();}).catch(function(e){window.__DN_ERR=String(e.message||e);renderDocNum();});
+    return;
+  }
+  var rows=(window.__DN_ROWS||[]).filter(function(r){return r.jenis&&String(r.jenis).trim();});
+  var f=window.__DN_F||(window.__DN_F={tahun:'',jenis:'',dep:'',q:''});
+  var years=dnDistinct(rows,'tahun').sort(function(a,b){return b-a;});
+  var jenises=dnDistinct(rows,'jenis').sort(); var deps=dnDistinct(rows,'departemen').sort();
+  var q=(f.q||'').toLowerCase();
+  var flt=rows.filter(function(r){
+    if(f.tahun&&String(r.tahun)!==String(f.tahun))return false;
+    if(f.jenis&&r.jenis!==f.jenis)return false;
+    if(f.dep&&r.departemen!==f.dep)return false;
+    if(q&&String(r.issued_to||'').toLowerCase().indexOf(q)<0&&String(r.nomor_surat||'').toLowerCase().indexOf(q)<0&&String(r.pic||'').toLowerCase().indexOf(q)<0)return false;
+    return true;
+  });
+  var latestYear=years[0];
+  var maxUrut=rows.filter(function(r){return String(r.tahun)===String(latestYear);}).reduce(function(m,r){return Math.max(m,r.no_urut||0);},0);
+  var disp=flt.map(function(r){return {tanggal:r.tanggal||'',no_urut:r.no_urut||'',nomor_surat:r.nomor_surat||'',jenis:r.jenis||'',departemen:r.departemen||'',bulan:r.bulan||'',tahun:r.tahun||'',pic:r.pic||'',issued_to:r.issued_to||''};});
+  var sorted=sortRows(disp,SORT.dn.col,SORT.dn.dir,SORT.dn.col==='no_urut'||SORT.dn.col==='tahun');
+  var kpi=[
+    ['Total dokumen',rows.length.toLocaleString('id-ID'),'semua tahun',''],
+    ['Terfilter',flt.length.toLocaleString('id-ID'),'sesuai filter','var(--brand-deep)'],
+    ['Tahun tercakup',years.length,years.length?years[years.length-1]+'–'+years[0]:'',''],
+    ['No urut berikutnya',(maxUrut+1),'tahun '+(latestYear||'-'),'var(--brand-deep)'],
+  ].map(function(k){return '<div class="kpi"><div class="kpi-lbl">'+k[0]+'</div><div class="kpi-val" style="'+(k[3]?'--c:'+k[3]:'')+'">'+k[1]+'</div><div class="kpi-sub">'+k[2]+'</div></div>';}).join('');
+  function opt(sel,arr,ph){return '<option value="">'+ph+'</option>'+arr.map(function(v){return '<option value="'+v+'"'+(String(sel)===String(v)?' selected':'')+'>'+v+'</option>';}).join('');}
+  var th=function(cc,lbl){return '<th class="sortable '+(SORT.dn.col===cc?'on':'')+'" data-c="'+cc+'">'+lbl+arrow(SORT.dn,cc)+'</th>';};
+  var body=sorted.slice(0,500).map(function(r){return '<tr><td>'+r.tanggal+'</td><td style="text-align:right;font-family:var(--mono)">'+r.no_urut+'</td><td style="font-family:var(--mono)"><b>'+r.nomor_surat+'</b></td><td>'+r.jenis+'</td><td>'+r.departemen+'</td><td>'+r.bulan+'</td><td>'+r.tahun+'</td><td>'+r.pic+'</td><td>'+r.issued_to+'</td></tr>';}).join('');
+  c.innerHTML=
+    '<div class="datanote"><b>Penomoran Dokumen Eksternal</b> — satu tampilan semua tahun (pakai filter, tidak dipisah per sheet). Klik <b>+ Buat Surat</b> untuk membuat nomor baru — nomor urut, JTS, bulan (Romawi) & tahun otomatis. Format: <code>[No]/JTS/[Jenis]/[Dept]/[Bln Romawi]/[Tahun]</code>. Baris tanpa jenis (slot nomor kosong) tidak ditampilkan. Sumber: database Supabase.</div>'
+    +'<div class="kpi-row" style="grid-template-columns:repeat(4,1fr)">'+kpi+'</div>'
+    +'<div class="filterbar"><select id="dnY">'+opt(f.tahun,years,'Semua tahun')+'</select><select id="dnJ">'+opt(f.jenis,jenises,'Semua jenis')+'</select><select id="dnD">'+opt(f.dep,deps,'Semua dept')+'</select><input id="dnQ" value="'+(f.q||'').replace(/"/g,'&quot;')+'" placeholder="cari issued to / nomor / PIC"><button class="btn-sm-outline" id="dnClear">Reset</button><span style="flex:1"></span><button class="btn2" id="dnNew">+ Buat Surat</button><label class="btn-sm-outline" style="cursor:pointer">Import Excel<input type="file" id="dnFile" accept=".xlsx,.xls" style="display:none"></label></div>'
+    +'<div class="tw"><table class="wf-tbl"><thead><tr>'+th('tanggal','Tanggal')+th('no_urut','No')+th('nomor_surat','Nomor Surat')+th('jenis','Jenis')+th('departemen','Dept')+th('bulan','Bln')+th('tahun','Thn')+th('pic','PIC')+th('issued_to','Issued To')+'</tr></thead><tbody>'+(body||'<tr><td colspan=9>Belum ada data — klik Import Excel untuk memuat data awal.</td></tr>')+'</tbody></table></div>'
+    +(sorted.length>500?'<p style="font-size:11px;color:var(--text-dim);margin-top:8px">Menampilkan 500 baris pertama — persempit dengan filter.</p>':'');
+  document.getElementById('dnY').onchange=function(){f.tahun=this.value;renderDocNum();};
+  document.getElementById('dnJ').onchange=function(){f.jenis=this.value;renderDocNum();};
+  document.getElementById('dnD').onchange=function(){f.dep=this.value;renderDocNum();};
+  var dq=document.getElementById('dnQ');dq.oninput=function(){f.q=this.value;var p=this.selectionStart;renderDocNum();var n=document.getElementById('dnQ');if(n){n.focus();try{n.setSelectionRange(p,p);}catch(e){}}};
+  document.getElementById('dnClear').onclick=function(){window.__DN_F={tahun:'',jenis:'',dep:'',q:''};renderDocNum();};
+  document.getElementById('dnNew').onclick=dnForm;
+  document.getElementById('dnFile').onchange=function(){if(this.files.length)dnImportFile(this.files[0]);};
+  c.querySelectorAll('.wf-tbl th.sortable').forEach(function(t){t.onclick=function(){var cc=t.dataset.c;if(SORT.dn.col===cc)SORT.dn.dir*=-1;else{SORT.dn.col=cc;SORT.dn.dir=1;}renderDocNum();};});
 }
 
 function renderTerminal(){
@@ -684,16 +876,20 @@ function renderTerminal(){
   const mt=window.__MT_ROWS;
   const active=mt.filter(mtIsActiveRow).length;
   const partners=new Set(mt.map(function(r){return norm(r.partner_name);}).filter(Boolean)).size;
+  if(['all','active','partners'].indexOf(window.__TM_FILTER)<0)window.__TM_FILTER='all';
+  const tf=window.__TM_FILTER;
   const q=(window.__TM_Q||'').toLowerCase();
   let flt=mt;
-  if(q)flt=mt.filter(function(r){return String(r.partner_name||'').toLowerCase().indexOf(q)>=0||String(r.terminal_name||'').toLowerCase().indexOf(q)>=0||String(r.terminal_id||'').toLowerCase().indexOf(q)>=0;});
+  if(tf==='active')flt=flt.filter(mtIsActiveRow);
+  else if(tf==='partners'){var us={};flt=flt.filter(function(r){var n=norm(r.partner_name);if(!n||us[n])return false;us[n]=1;return true;});}
+  if(q)flt=flt.filter(function(r){return String(r.partner_name||'').toLowerCase().indexOf(q)>=0||String(r.terminal_name||'').toLowerCase().indexOf(q)>=0||String(r.terminal_id||'').toLowerCase().indexOf(q)>=0;});
   const disp=flt.map(function(r){return {partner:r.partner_name||'',terminal:r.terminal_name||r.terminal_id||'',status:r.deployment_status||'',aktif:(r.is_active===false?'Tidak':'Ya'),region:r.region||r.province||''};});
   const sorted=sortRows(disp,SORT.tm.col,SORT.tm.dir,false);
   const kpi=[
-    ['Total terminal',mt.length,'dari RchgOps',''],
-    ['Terminal aktif',active,'deployed & is_active','var(--brand-deep)'],
-    ['Partner unik',partners,'punya terminal',''],
-  ].map(k=>`<div class="kpi"><div class="kpi-lbl">${k[0]}</div><div class="kpi-val" style="${k[3]?'--c:'+k[3]:''}">${k[1]}</div><div class="kpi-sub">${k[2]}</div></div>`).join('');
+    ['Total terminal',mt.length,'dari RchgOps','','all'],
+    ['Terminal aktif',active,'deployed & is_active','var(--brand-deep)','active'],
+    ['Partner unik',partners,'punya terminal','','partners'],
+  ].map(k=>`<div class="kpi click ${tf===k[4]?'active':''}" data-filter="${k[4]}"><div class="kpi-lbl">${k[0]}</div><div class="kpi-val" style="${k[3]?'--c:'+k[3]:''}">${k[1]}</div><div class="kpi-sub">${k[2]}</div></div>`).join('');
   const th=(cc,lbl)=>`<th class="sortable ${SORT.tm.col===cc?'on':''}" data-c="${cc}">${lbl}${arrow(SORT.tm,cc)}</th>`;
   const body=sorted.slice(0,300).map(r=>`<tr><td><b>${r.partner}</b></td><td>${r.terminal}</td><td>${r.status}</td><td>${r.aktif}</td><td>${r.region}</td></tr>`).join('');
   c.innerHTML=
@@ -704,7 +900,96 @@ function renderTerminal(){
     ${sorted.length>300?'<p style="font-size:11px;color:var(--text-dim);margin-top:8px">Menampilkan 300 baris pertama — pakai Cari untuk mempersempit.</p>':''}`;
   const qi=document.getElementById('tmQ');qi.oninput=function(){window.__TM_Q=this.value;var p=this.selectionStart;renderTerminal();var n=document.getElementById('tmQ');if(n){n.focus();try{n.setSelectionRange(p,p);}catch(e){}}};
   document.getElementById('tmRefresh').onclick=function(){window.__MT_ROWS=null;renderTerminal();};
+  c.querySelectorAll('.kpi.click').forEach(function(k){k.onclick=function(){window.__TM_FILTER=k.dataset.filter;renderTerminal();};});
   c.querySelectorAll('.wf-tbl th.sortable').forEach(function(t){t.onclick=function(){var cc=t.dataset.c;if(SORT.tm.col===cc)SORT.tm.dir*=-1;else{SORT.tm.col=cc;SORT.tm.dir=1;}renderTerminal();};});
+}
+
+/* ---------- Sales SPT PPN — Data Expired/Wipe/Return (sumber: RchgDashboard rent_report via RPC) ---------- */
+const SPT_ALL=['expired','wipe','return'];
+function sptDefaultPeriod(){var d=new Date();d.setDate(1);d.setMonth(d.getMonth()-1);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');}
+function sptMonthDays(p){var y=+p.slice(0,4),m=+p.slice(5,7);var n=new Date(y,m,0).getDate();var a=[];for(var d=1;d<=n;d++)a.push(p+'-'+String(d).padStart(2,'0'));return a;}
+function sptRp(n){return 'Rp '+Math.round(Number(n)||0).toLocaleString('id-ID');}
+function sptState(){return window.__SPT||(window.__SPT={period:sptDefaultPeriod(),st:{expired:true,wipe:true,return:true},data:null,loading:false,err:null,tok:0,rate:11,mode:'incl'});}
+function sptSelStatuses(){var s=sptState();return SPT_ALL.filter(function(k){return s.st[k];});}
+/* PPN: mode 'incl' = Gross sudah termasuk PPN → DPP=Gross/(1+r), PPN=Gross-DPP; mode 'excl' = Gross belum termasuk → DPP=Gross, PPN=Gross*r. Rumus/tarif ASUMSI, wajib dikonfirmasi finance. */
+function sptPpn(gross){var s=sptState(),r=(Number(s.rate)||0)/100,g=Number(gross)||0;if(s.mode==='excl')return {dpp:g,ppn:g*r};var dpp=g/(1+r);return {dpp:dpp,ppn:g-dpp};}
+function sptLoad(){
+  var s=sptState();var stat=sptSelStatuses();if(!stat.length)return;
+  var days=sptMonthDays(s.period),first=days[0],last=days[days.length-1],tok=++s.tok;
+  s.loading=true;s.err=null;renderSPT();
+  Promise.all([
+    Promise.all(days.map(function(dt){return dashRpc('get_rent_summary',{date_from:dt,date_to:dt,statuses:stat}).then(function(r){return {dt:dt,r:r};}).catch(function(){return {dt:dt,r:{ok:false}};});})),
+    dashRpc('get_rent_city_range',{date_from:first,date_to:last,statuses:stat}).catch(function(){return {ok:false};})
+  ]).then(function(res){
+    if(tok!==s.tok)return;
+    var drows=[],tot={trx:0,rev:0,bal:0,pkg:0},failed=0;
+    res[0].forEach(function(o){var d=o.r&&o.r.ok?o.r.data:null;if(!d){failed++;return;}
+      var row={date:o.dt,trx:d.total_trx||0,bal:d.balance_rev||0,pkg:d.package_rev||0,total:d.total_revenue||0};
+      drows.push(row);tot.trx+=row.trx;tot.rev+=row.total;tot.bal+=row.bal;tot.pkg+=row.pkg;});
+    var cr=res[1],crows=(cr&&cr.ok&&Array.isArray(cr.data))?cr.data.map(function(x){return {city:x.city,trx:Number(x.trx)||0,rev:Number(x.revenue)||0};}):[];
+    s.data={days:drows,cities:crows,tot:tot,failed:failed,cityErr:!(cr&&cr.ok),statuses:stat.slice(),period:s.period};
+    s.loading=false;renderSPT();
+  }).catch(function(e){if(tok!==s.tok)return;s.loading=false;s.err=String(e.message||e);renderSPT();});
+}
+function sptExport(){
+  var s=sptState();if(!s.data)return;
+  if(typeof XLSX==='undefined'){alert('Library Excel belum termuat (perlu internet).');return;}
+  var d=s.data,wb=XLSX.utils.book_new(),tp=sptPpn(d.tot.rev),modeLbl=s.mode==='incl'?'Gross termasuk PPN':'Gross belum termasuk PPN';
+  var h1=[['Tanggal','Transaksi','Gross','DPP','PPN']];
+  d.days.forEach(function(r){var p=sptPpn(r.total);h1.push([r.date,r.trx,r.total,Math.round(p.dpp),Math.round(p.ppn)]);});
+  h1.push(['TOTAL',d.tot.trx,d.tot.rev,Math.round(tp.dpp),Math.round(tp.ppn)]);
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(h1),'Harian');
+  var h2=[['Kota','Transaksi','Gross','DPP','PPN']];
+  d.cities.forEach(function(r){var p=sptPpn(r.rev);h2.push([r.city,r.trx,r.rev,Math.round(p.dpp),Math.round(p.ppn)]);});
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(h2),'Per Kota');
+  var meta=[['Periode',d.period],['Status',d.statuses.join(', ')],['Total transaksi',d.tot.trx],['Gross (Total Revenue)',d.tot.rev],['DPP',Math.round(tp.dpp)],['PPN',Math.round(tp.ppn)],['Tarif PPN (%)',s.rate],['Mode',modeLbl],['Rev Balance',d.tot.bal],['Rev Package',d.tot.pkg],['CATATAN','Rumus & tarif PPN = ASUMSI, wajib dikonfirmasi finance/konsultan pajak. Sumber: RchgDashboard rent_report via RPC.']];
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(meta),'Info');
+  XLSX.writeFile(wb,'Sales_SPT_PPN_'+d.period+'.xlsx');
+}
+function renderSPT(){
+  var s=sptState(),c=document.getElementById('content');
+  if(sptSelStatuses().length&&s.data===null&&!s.loading&&!s.err)return sptLoad();
+  function cb(k,lbl){return '<label class="spt-chk"><input type="checkbox" data-st="'+k+'"'+(s.st[k]?' checked':'')+'> '+lbl+'</label>';}
+  var controls='<div class="filterbar"><label style="font-size:12px;font-weight:700;color:var(--text2)">Periode <input type="month" id="sptP" value="'+s.period+'" style="margin-left:6px"></label><span style="width:6px"></span>'+cb('expired','Expired')+cb('wipe','Wipe')+cb('return','Return')+'<span style="flex:1"></span><button class="btn-sm-outline" id="sptReload">↻ Muat ulang</button><button class="btn2" id="sptExp"'+(s.data?'':' disabled')+'>Export Excel</button></div>';
+  var ppnCtrl='<div class="filterbar"><label style="font-size:12px;font-weight:700;color:var(--text2)">Tarif PPN (%) <input type="number" id="sptRate" value="'+s.rate+'" min="0" step="0.5" style="width:78px;margin-left:6px"></label><label style="font-size:12px;font-weight:700;color:var(--text2);margin-left:6px">Mode <select id="sptMode" style="margin-left:6px"><option value="incl"'+(s.mode==='incl'?' selected':'')+'>Gross termasuk PPN</option><option value="excl"'+(s.mode==='excl'?' selected':'')+'>Gross belum termasuk PPN</option></select></label></div>';
+  var banner='<div class="datanote"><b>Sales SPT PPN — Expired / Wipe / Return</b> — sumber transaksi <code>rent_report</code> dari RchgDashboard, diagregasi via RPC resmi. Revenue = kolom Fee (Gross). Detail per-transaksi tidak tersedia (tabel di-RLS) → ditampilkan agregat harian & per kota.</div>';
+  var konfirm='<div class="konfirm"><h4>⚠ ASUMSI — perlu dikonfirmasi ke tim Finance sebelum angka PPN dianggap sah</h4><ol>'
+    +'<li><b>Rumus &amp; tarif PPN.</b> Sekarang: tarif <b>'+s.rate+'%</b>, mode <b>"'+(s.mode==='incl'?'Gross termasuk PPN':'Gross belum termasuk PPN')+'"</b> (DPP '+(s.mode==='incl'?'= Gross ÷ 1,11':'= Gross')+'). Konfirmasi: tarif berapa, inklusif/eksklusif, apakah pakai DPP Nilai Lain 11/12 (aturan 2025).</li>'
+    +'<li><b>Dasar pengenaan.</b> Diasumsikan "Gross" (kolom Fee) = seluruh nilai kena PPN. Konfirmasi apakah ada yang dikecualikan / tidak kena.</li>'
+    +'<li><b>Kelengkapan sumber.</b> Data ini <b>hanya</b> dari <code>rent_report</code>. Konfirmasi apakah <code>purchase_report</code> (Top Up / Package) juga masuk sales report SPT PPN — kalau ya, base sekarang <b>masih kurang</b>.</li>'
+    +'<li><b>Status "Wipe".</b> Konfirmasi apakah "wipe" termasuk penjualan kena PPN, atau sebenarnya write-off/hapus (tidak kena PPN).</li>'
+    +'<li><b>Rekonsiliasi.</b> Cocokkan total di halaman ini dengan 1 export manual finance sebelum dipakai.</li>'
+    +'</ol></div>';
+  var body='';
+  if(!sptSelStatuses().length)body='<div class="datanote">Pilih minimal satu status (Expired / Wipe / Return).</div>';
+  else if(s.loading)body='<div class="datanote">Memuat data '+s.period+' dari RchgDashboard… (agregasi harian, mohon tunggu)</div>';
+  else if(s.err)body='<div class="datanote"><b>Gagal memuat.</b> '+s.err+' — klik Muat ulang.</div>';
+  else if(s.data){
+    var d=s.data,tp=sptPpn(d.tot.rev);
+    var kpi=[['Total transaksi',d.tot.trx.toLocaleString('id-ID'),d.statuses.join(' · '),''],['Gross (Revenue)',sptRp(d.tot.rev),'kolom Fee',''],['DPP <span class="atag">asumsi</span>',sptRp(tp.dpp),'dasar pengenaan',''],['PPN ('+s.rate+'%) <span class="atag">asumsi</span>',sptRp(tp.ppn),s.mode==='incl'?'dari Gross termasuk PPN':'dari Gross belum PPN','var(--brand-deep)']].map(function(k){return '<div class="kpi"><div class="kpi-lbl">'+k[0]+'</div><div class="kpi-val" style="'+(k[3]?'--c:'+k[3]:'')+'">'+k[1]+'</div><div class="kpi-sub">'+k[2]+'</div></div>';}).join('');
+    var subline='<p style="font-size:11.5px;color:var(--text-dim);margin:2px 0 4px">Split metode bayar (info): Rev Balance '+sptRp(d.tot.bal)+' · Rev Package '+sptRp(d.tot.pkg)+'</p>';
+    var drows2=d.days.map(function(r){var p=sptPpn(r.total);return {date:r.date,trx:r.trx,gross:r.total,dpp:p.dpp,ppn:p.ppn};});
+    var crows2=d.cities.map(function(r){var p=sptPpn(r.rev);return {city:r.city,trx:r.trx,gross:r.rev,dpp:p.dpp,ppn:p.ppn};});
+    var thd=function(cc,lbl){return '<th class="sortable '+(SORT.spd.col===cc?'on':'')+'" data-c="'+cc+'" data-t="d">'+lbl+arrow(SORT.spd,cc)+'</th>';};
+    var dsorted=sortRows(drows2,SORT.spd.col,SORT.spd.dir,SORT.spd.col&&SORT.spd.col!=='date');
+    var dbody=dsorted.map(function(r){return '<tr><td>'+r.date+'</td><td style="text-align:right">'+r.trx.toLocaleString('id-ID')+'</td><td style="text-align:right">'+sptRp(r.gross)+'</td><td style="text-align:right">'+sptRp(r.dpp)+'</td><td style="text-align:right"><b>'+sptRp(r.ppn)+'</b></td></tr>';}).join('');
+    var dtot='<tr class="ttl"><td><b>TOTAL</b></td><td style="text-align:right"><b>'+d.tot.trx.toLocaleString('id-ID')+'</b></td><td style="text-align:right"><b>'+sptRp(d.tot.rev)+'</b></td><td style="text-align:right"><b>'+sptRp(tp.dpp)+'</b></td><td style="text-align:right"><b>'+sptRp(tp.ppn)+'</b></td></tr>';
+    var thc=function(cc,lbl){return '<th class="sortable '+(SORT.spc.col===cc?'on':'')+'" data-c="'+cc+'" data-t="c">'+lbl+arrow(SORT.spc,cc)+'</th>';};
+    var csorted=sortRows(crows2,SORT.spc.col,SORT.spc.dir,SORT.spc.col&&SORT.spc.col!=='city');
+    var cbody=csorted.map(function(r){return '<tr><td>'+r.city+'</td><td style="text-align:right">'+r.trx.toLocaleString('id-ID')+'</td><td style="text-align:right">'+sptRp(r.gross)+'</td><td style="text-align:right">'+sptRp(r.dpp)+'</td><td style="text-align:right"><b>'+sptRp(r.ppn)+'</b></td></tr>';}).join('');
+    var warn=(d.failed?'<p style="font-size:11px;color:var(--red);margin:8px 0">⚠ '+d.failed+' hari gagal dimuat — total bisa kurang, coba Muat ulang.</p>':'')+(d.cityErr?'<p style="font-size:11px;color:var(--red);margin:8px 0">⚠ Rincian per kota gagal dimuat.</p>':'');
+    body='<div class="kpi-row" style="grid-template-columns:repeat(4,1fr)">'+kpi+'</div>'+subline+warn
+      +'<h3 class="spt-h">Ringkasan harian — '+d.period+' <span class="atag">DPP·PPN asumsi</span> (Gross · DPP · PPN)</h3><div class="tw"><table class="wf-tbl"><thead><tr>'+thd('date','Tanggal')+thd('trx','Transaksi')+thd('gross','Gross')+thd('dpp','DPP')+thd('ppn','PPN')+'</tr></thead><tbody>'+dtot+(dbody||'<tr><td colspan=5>Tidak ada data.</td></tr>')+'</tbody></table></div>'
+      +'<h3 class="spt-h">Per kota <span class="atag">DPP·PPN asumsi</span> (Gross · DPP · PPN)</h3><div class="tw"><table class="wf-tbl"><thead><tr>'+thc('city','Kota')+thc('trx','Transaksi')+thc('gross','Gross')+thc('dpp','DPP')+thc('ppn','PPN')+'</tr></thead><tbody>'+(cbody||'<tr><td colspan=5>Tidak ada data.</td></tr>')+'</tbody></table></div>';
+  }
+  c.innerHTML=banner+konfirm+controls+ppnCtrl+body;
+  var pEl=document.getElementById('sptP');if(pEl)pEl.onchange=function(){s.period=this.value;s.data=null;s.err=null;renderSPT();};
+  document.querySelectorAll('input[data-st]').forEach(function(x){x.onchange=function(){s.st[this.dataset.st]=this.checked;s.data=null;s.err=null;renderSPT();};});
+  var rt=document.getElementById('sptRate');if(rt)rt.onchange=function(){s.rate=this.value===''?0:Number(this.value);renderSPT();};
+  var md=document.getElementById('sptMode');if(md)md.onchange=function(){s.mode=this.value;renderSPT();};
+  var rl=document.getElementById('sptReload');if(rl)rl.onclick=function(){s.data=null;s.err=null;renderSPT();};
+  var ex=document.getElementById('sptExp');if(ex)ex.onclick=sptExport;
+  c.querySelectorAll('.wf-tbl th.sortable').forEach(function(t){t.onclick=function(){var w=t.dataset.t==='c'?SORT.spc:SORT.spd,cc=t.dataset.c;if(w.col===cc)w.dir*=-1;else{w.col=cc;w.dir=1;}renderSPT();};});
 }
 
 function render(view){
@@ -713,8 +998,10 @@ function render(view){
   else if(view==='wf')c.innerHTML=wfHTML();
   else if(view==='mc')renderMC();
   else if(view==='terminal')renderTerminal();
+  else if(view==='docnum')renderDocNum();
   else if(view==='upload')renderUpload();
   else if(view==='partners')renderPartners();
+  else if(view==='spt')renderSPT();
   else{const cs=CASES.find(x=>x.id===view);c.innerHTML=caseHTML(cs);}
   document.getElementById('tbTitle').textContent=TITLES[view]||'Overview';
   document.querySelectorAll('.nav-item[data-view]').forEach(n=>n.classList.toggle('active',n.dataset.view===view));
