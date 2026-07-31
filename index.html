@@ -1144,7 +1144,11 @@ async function vatFetchAllRows(fn,body){
   var j=await r.json();if(!Array.isArray(j))throw new Error(fn+': '+(j&&j.message||'respons tak terduga'));return j;}
 function vatAddSheet(wb,name,rows){var ws;
   if(rows&&rows.length){var keys=[],seen={};rows.forEach(function(r){Object.keys(r).forEach(function(k){if(!seen[k]){seen[k]=1;keys.push(k);}});});
-    var aoa=[keys];rows.forEach(function(r){aoa.push(keys.map(function(k){var v=r[k];return v===undefined?null:v;}));});ws=XLSX.utils.aoa_to_sheet(aoa);ws['!cols']=vatAutoWidth(aoa,200);}
+    /* kolom angka (amount/kuantitas) → dikonversi jadi number biar bisa di-SUM di Excel; kolom ID/teks tetap teks */
+    var NUM={};'fee,gmv,discount,discount amount,deducted package quota,rent package fee,duration in hour(s),final amount,normal amount,user credit before,user credit after,rent counter,borrow hour'.split(',').forEach(function(n){NUM[n]=1;});
+    var numCol=keys.map(function(k){return !!NUM[String(k).toLowerCase().trim()];});
+    var aoa=[keys];rows.forEach(function(r){aoa.push(keys.map(function(k,i){var v=r[k];if(v===undefined||v===null)return null;if(numCol[i]&&typeof v==='string'&&/^-?\d+(\.\d+)?$/.test(v.trim()))return Number(v);return v;}));});
+    ws=XLSX.utils.aoa_to_sheet(aoa);ws['!cols']=vatAutoWidth(aoa,200);}
   else ws=XLSX.utils.aoa_to_sheet([['(tidak ada data)']]);
   XLSX.utils.book_append_sheet(wb,ws,name);}
 async function vatUploadExpired(file){
