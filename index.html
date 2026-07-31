@@ -1083,7 +1083,7 @@ function vatLoad(){var s=vatState(),tok=++s.tok;s.loading=true;s.err=null;render
 /* Susun angka VAT Recon persis struktur existing. Balance/Package dari data; Penalty/Adm Fee/Franchisee = input manual (Laura isi manual). */
 var VAT_ADMFEE=2500; /* admin fee flat per transaksi (dikonfirmasi finance; = Final Amount − Normal Amount di purchase_report) */
 function vatCompute(){var s=vatState(),tu=s.data.tu,m=vatMan();
-  var pen=Number(m.pen)||0, fbal=Number(m.fbal)||0, fpkg=Number(m.fpkg)||0, reg=Number(m.reg)||0;
+  var pen=Number(m.pen)||0, fbal=Number(m.fbal)||0, reg=Number(m.reg)||0;
   /* Adm Fee OTOMATIS = 2.500 × jumlah transaksi. Net = Final − Adm Fee (= Normal Amount). Total tetap = Final + Penalty. */
   var balTrx=(tu.balTrx||0)+(tu.othTrx||0), pkgTrx=(tu.pkgTrx||0);
   var bal=(tu.balance+tu.other)-VAT_ADMFEE*balTrx, pkg=tu['package']-VAT_ADMFEE*pkgTrx;
@@ -1091,12 +1091,13 @@ function vatCompute(){var s=vatState(),tu=s.data.tu,m=vatMan();
   var r5=[bal,pkg,pen,adm], f5=bal+pkg+pen+adm;
   var r6=r5.map(function(x){return x/1.11;}), f6=f5/1.11;
   var r7=r6.map(function(x){return x*0.11;}), f7=r7.reduce(function(a,b){return a+b;},0);
-  var r8=[-fbal/1.11,-fpkg/1.11,0,0], f8=r8.reduce(function(a,b){return a+b;},0);
+  /* B8 = Franchisee Fee (balance) aktif; C8 (Franchisee Package) DITAHAN = 0 — kolom Deducted Fee Package belum ada */
+  var r8=[-fbal/1.11,0,0,0], f8=r8.reduce(function(a,b){return a+b;},0);
   var r9=r8.map(function(x){return x*0.11;}), f9=r9.reduce(function(a,b){return a+b;},0);
   var netVat=f7+f9;
   var cp=bal+pkg, b16=-(r7[0]+r9[0]), b17=-r7[1], b18=-reg, b19=-r6[1], b20=r8[0]+r9[0];
   var b21=cp+b16+b17+b18+b19+b20, b22=bal/1.11-reg-b21;
-  return {bal:bal,pkg:pkg,pen:pen,adm:adm,fbal:fbal,fpkg:fpkg,reg:reg,r5:r5,f5:f5,r6:r6,f6:f6,r7:r7,f7:f7,r8:r8,f8:f8,r9:r9,f9:f9,netVat:netVat,cp:cp,b16:b16,b17:b17,b18:b18,b19:b19,b20:b20,b21:b21,b22:b22};
+  return {bal:bal,pkg:pkg,pen:pen,adm:adm,fbal:fbal,reg:reg,r5:r5,f5:f5,r6:r6,f6:f6,r7:r7,f7:f7,r8:r8,f8:f8,r9:r9,f9:f9,netVat:netVat,cp:cp,b16:b16,b17:b17,b18:b18,b19:b19,b20:b20,b21:b21,b22:b22};
 }
 function vatReconAoa(){var s=vatState(),x=vatCompute(),lbl=vatMonthLbl(s.period);
   return [['PT Jalan Terus Saja'],['VAT Output Reconciliation'],['For '+lbl],
@@ -1164,9 +1165,8 @@ function renderVAT(){
   var controls='<div class="filterbar"><label style="font-size:12px;font-weight:700;color:var(--text2)">Periode <input type="month" id="vatP" value="'+s.period+'" style="margin-left:6px"></label><label class="btn-sm-outline" style="cursor:pointer">Upload Expired<input type="file" id="vatExpFile" accept=".xlsx,.xls" style="display:none"></label>'+expStat+'<span style="flex:1"></span><button class="btn-sm-outline" id="vatReload">↻ Muat ulang</button><button class="btn2" id="vatDl"'+(s.data?'':' disabled')+'>Download (7 sheet + VAT Recon)</button></div>';
   var manbar='<div class="filterbar" style="gap:12px"><span style="font-size:11.5px;font-weight:800;color:var(--text-dim)">KOMPONEN MANUAL:</span>'
     +'<label style="font-size:11.5px;font-weight:700;color:var(--text2)">Penalty PB Loss '+mi('pen','0')+'</label>'
-    +'<label style="font-size:11.5px;font-weight:700;color:var(--text2)">Franchisee Balance '+mi('fbal','0')+'</label>'
-    +'<label style="font-size:11.5px;font-weight:700;color:var(--text2)">Franchisee Package '+mi('fpkg','0')+'</label>'
-    +'<span style="font-size:11.5px;color:var(--text-dim)">· Adm Fee otomatis (Rp 2.500/trx)</span></div>';
+    +'<label style="font-size:11.5px;font-weight:700;color:var(--text2)">Franchisee Fee — Balance (B8) '+mi('fbal','0')+'</label>'
+    +'<span style="font-size:11.5px;color:var(--text-dim)">· Adm Fee otomatis (Rp 2.500/trx) · C8/C9 (Franchisee Package) ditahan — menunggu kolom Deducted Fee Package</span></div>';
   var banner='<div class="datanote"><b>VAT Recon — Output Reconciliation.</b> PB-Top Up &amp; PB-Package <b>dari data live</b> (<code>purchase_report</code>, Status=PAID). Penalty, Adm Fee &amp; Franchisee = input manual (seperti Laura). Rumus: DPP = Gross ÷ 1,11 · VAT = 11%. Format export <b>sama seperti sheet existing</b>. Sumber: 202606 Sales.xlsx + wawancara Laura.</div>';
   var body='';
   if(s.loading)body='<div class="datanote">Menghitung VAT Recon '+s.period+' dari data live…</div>';
@@ -1187,7 +1187,7 @@ function renderVAT(){
     var flags='<div class="konfirm"><h4>Sumber tiap komponen (agar transparan)</h4><ol>'
       +'<li><b>PB-Top Up &amp; PB-Package</b> = <b>net</b> dari data live <code>purchase_report</code> = Final Amount − Rp 2.500/transaksi (= kolom Normal Amount). Cocok dengan hitungan manual Laura.</li>'
       +'<li><b>Other Income (Adm Fee)</b> = <b>otomatis</b> = Rp 2.500 × jumlah transaksi top up.</li>'
-      +'<li><b>Penalty PB Loss &amp; Franchisee (back-out)</b> = <b>input manual</b> (Penalty diisi finance; Franchisee belum bisa difilter per terminal dari data).</li>'
+      +'<li><b>Penalty PB Loss</b> = input manual (diisi finance). <b>Franchisee back-out:</b> B8/B9 (balance) aktif via input manual "Franchisee Fee — Balance"; <b>C8/C9 (package) ditahan = 0</b> karena kolom <i>Deducted Fee Package</i> belum ada.</li>'
       +'<li><b>DPP &amp; VAT</b> = rumus terkonfirmasi (÷1,11 · ×11%).</li>'
       +'</ol></div>';
     body='<div class="kpi-row" style="grid-template-columns:repeat(4,1fr)">'+kpi+'</div>'+manbar
@@ -1197,7 +1197,7 @@ function renderVAT(){
   }
   c.innerHTML=banner+controls+body;
   var pe=document.getElementById('vatP');if(pe)pe.onchange=function(){s.period=this.value;s.data=null;s.err=null;renderVAT();};
-  ['pen','fbal','fpkg'].forEach(function(k){var el=document.getElementById('vm_'+k);if(el)el.onchange=function(){vatSetMan(k,Number(this.value)||0);renderVAT();};});
+  ['pen','fbal'].forEach(function(k){var el=document.getElementById('vm_'+k);if(el)el.onchange=function(){vatSetMan(k,Number(this.value)||0);renderVAT();};});
   var ef=document.getElementById('vatExpFile');if(ef)ef.onchange=function(){if(this.files.length)vatUploadExpired(this.files[0]);};
   var rl=document.getElementById('vatReload');if(rl)rl.onclick=function(){s.data=null;s.err=null;renderVAT();};
   var dl=document.getElementById('vatDl');if(dl)dl.onclick=vatDownload;
