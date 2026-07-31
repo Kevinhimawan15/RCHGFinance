@@ -1079,17 +1079,21 @@ function vatLoad(){var s=vatState(),tok=++s.tok;s.loading=true;s.err=null;render
   Promise.all([
     purFetch(s.period),
     dashRpc('get_rent_city_range',{date_from:r[0],date_to:r[1],statuses:['expired','wipe','return']}).catch(function(){return {ok:false};}),
-    dashRpc('get_franchisee_fee',{date_from:r[0],date_to:r[1]}).catch(function(){return {ok:false};})
+    dashRpc('get_franchisee_fee',{date_from:r[0],date_to:r[1]}).catch(function(){return {ok:false};}),
+    dashRpc('get_rent_fee',{date_from:r[0],date_to:r[1]}).catch(function(){return {ok:false};})
   ])
-  .then(function(res){if(tok!==s.tok)return;var tu=res[0],cr=res[1],fr=res[2],rt=0,rx=0;if(cr&&cr.ok&&Array.isArray(cr.data))cr.data.forEach(function(x){rt+=Number(x.revenue)||0;rx+=Number(x.trx)||0;});
+  .then(function(res){if(tok!==s.tok)return;var tu=res[0],cr=res[1],fr=res[2],rf=res[3],rt=0,rx=0;if(cr&&cr.ok&&Array.isArray(cr.data))cr.data.forEach(function(x){rt+=Number(x.revenue)||0;rx+=Number(x.trx)||0;});
     var fbal=0,fpkg=0,frOk=(fr&&fr.ok&&Array.isArray(fr.data));
     if(frOk)fr.data.forEach(function(x){var pm=String(x.payment_method||'').toLowerCase().trim();if(pm==='balance')fbal+=Number(x.fee_sum)||0;else if(pm==='package')fpkg+=Number(x.fee_sum)||0;});
-    if(!tu.ok){s.err='Gagal memuat data top up.';s.data=null;}else s.data={tu:tu,rentTot:rt,rentTrx:rx,franchBal:fbal,franchPkg:fpkg,franchOk:frOk};s.loading=false;renderVAT();})
+    var regFee=0,regOk=(rf&&rf.ok&&Array.isArray(rf.data));
+    if(regOk)rf.data.forEach(function(x){if(String(x.payment_method||'').toLowerCase().trim()==='balance')regFee+=Number(x.fee_sum)||0;});
+    if(!tu.ok){s.err='Gagal memuat data top up.';s.data=null;}else s.data={tu:tu,rentTot:rt,rentTrx:rx,franchBal:fbal,franchPkg:fpkg,franchOk:frOk,regFee:regFee,regOk:regOk};s.loading=false;renderVAT();})
   .catch(function(e){if(tok!==s.tok)return;s.err=String(e.message||e);s.loading=false;renderVAT();});}
 /* Susun angka VAT Recon persis struktur existing. Balance/Package dari data; Penalty/Adm Fee/Franchisee = input manual (Laura isi manual). */
 var VAT_ADMFEE=2500; /* admin fee flat per transaksi (dikonfirmasi finance; = Final Amount − Normal Amount di purchase_report) */
 function vatCompute(){var s=vatState(),tu=s.data.tu,m=vatMan();
-  var pen=Number(m.pen)||0, reg=Number(m.reg)||0;
+  var pen=Number(m.pen)||0;
+  var reg=Number(s.data.regFee)||0; /* B18 total Regular = Σ Fee sewa balance (get_rent_fee) */
   var fbal=Number(s.data.franchBal)||0; /* B8 OTOMATIS = total Fee franchisee (balance) dari get_franchisee_fee */
   /* Adm Fee OTOMATIS = 2.500 × jumlah transaksi. Net = Final − Adm Fee (= Normal Amount). Total tetap = Final + Penalty. */
   var balTrx=(tu.balTrx||0)+(tu.othTrx||0), pkgTrx=(tu.pkgTrx||0);
@@ -1102,8 +1106,9 @@ function vatCompute(){var s=vatState(),tu=s.data.tu,m=vatMan();
   var r8=[-fbal/1.11,0,0,0], f8=r8.reduce(function(a,b){return a+b;},0);
   var r9=r8.map(function(x){return x*0.11;}), f9=r9.reduce(function(a,b){return a+b;},0);
   var netVat=f7+f9;
+  /* Rekon Selisih — formula ASLI file Laura (self-check → 0): B15=net top-up(bal+pkg); B16=-B7-B9; B17=-C7; B18=-total Regular(Σ Fee sewa balance); B19=-C6; B20=SUM(B8:B9); B21=SUM(B15:B20); B22=B5/1.11 - total Regular - B21 - (Total Fee Franchisee/1.11). */
   var cp=bal+pkg, b16=-(r7[0]+r9[0]), b17=-r7[1], b18=-reg, b19=-r6[1], b20=r8[0]+r9[0];
-  var b21=cp+b16+b17+b18+b19+b20, b22=bal/1.11-reg-b21;
+  var b21=cp+b16+b17+b18+b19+b20, b22=bal/1.11-reg-b21-fbal/1.11;
   return {bal:bal,pkg:pkg,pen:pen,adm:adm,fbal:fbal,reg:reg,r5:r5,f5:f5,r6:r6,f6:f6,r7:r7,f7:f7,r8:r8,f8:f8,r9:r9,f9:f9,netVat:netVat,cp:cp,b16:b16,b17:b17,b18:b18,b19:b19,b20:b20,b21:b21,b22:b22};
 }
 function vatReconAoa(){var s=vatState(),x=vatCompute(),lbl=vatMonthLbl(s.period);
