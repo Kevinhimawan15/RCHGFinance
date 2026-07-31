@@ -1076,14 +1076,21 @@ function vatMan(){var s=vatState();return s.man[s.period]||{};}
 function vatSetMan(k,v){var s=vatState();var o=s.man[s.period]||{};if(v>0)o[k]=v;else delete o[k];if(Object.keys(o).length)s.man[s.period]=o;else delete s.man[s.period];try{localStorage.setItem('rchg-fin-vatman',JSON.stringify(s.man));}catch(e){}}
 function vatLoad(){var s=vatState(),tok=++s.tok;s.loading=true;s.err=null;renderVAT();
   var r=tuMonthRange(s.period);
-  Promise.all([purFetch(s.period),dashRpc('get_rent_city_range',{date_from:r[0],date_to:r[1],statuses:['expired','wipe','return']}).catch(function(){return {ok:false};})])
-  .then(function(res){if(tok!==s.tok)return;var tu=res[0],cr=res[1],rt=0,rx=0;if(cr&&cr.ok&&Array.isArray(cr.data))cr.data.forEach(function(x){rt+=Number(x.revenue)||0;rx+=Number(x.trx)||0;});
-    if(!tu.ok){s.err='Gagal memuat data top up.';s.data=null;}else s.data={tu:tu,rentTot:rt,rentTrx:rx};s.loading=false;renderVAT();})
+  Promise.all([
+    purFetch(s.period),
+    dashRpc('get_rent_city_range',{date_from:r[0],date_to:r[1],statuses:['expired','wipe','return']}).catch(function(){return {ok:false};}),
+    dashRpc('get_franchisee_fee',{date_from:r[0],date_to:r[1]}).catch(function(){return {ok:false};})
+  ])
+  .then(function(res){if(tok!==s.tok)return;var tu=res[0],cr=res[1],fr=res[2],rt=0,rx=0;if(cr&&cr.ok&&Array.isArray(cr.data))cr.data.forEach(function(x){rt+=Number(x.revenue)||0;rx+=Number(x.trx)||0;});
+    var fbal=0,fpkg=0,frOk=(fr&&fr.ok&&Array.isArray(fr.data));
+    if(frOk)fr.data.forEach(function(x){var pm=String(x.payment_method||'').toLowerCase().trim();if(pm==='balance')fbal+=Number(x.fee_sum)||0;else if(pm==='package')fpkg+=Number(x.fee_sum)||0;});
+    if(!tu.ok){s.err='Gagal memuat data top up.';s.data=null;}else s.data={tu:tu,rentTot:rt,rentTrx:rx,franchBal:fbal,franchPkg:fpkg,franchOk:frOk};s.loading=false;renderVAT();})
   .catch(function(e){if(tok!==s.tok)return;s.err=String(e.message||e);s.loading=false;renderVAT();});}
 /* Susun angka VAT Recon persis struktur existing. Balance/Package dari data; Penalty/Adm Fee/Franchisee = input manual (Laura isi manual). */
 var VAT_ADMFEE=2500; /* admin fee flat per transaksi (dikonfirmasi finance; = Final Amount − Normal Amount di purchase_report) */
 function vatCompute(){var s=vatState(),tu=s.data.tu,m=vatMan();
-  var pen=Number(m.pen)||0, fbal=Number(m.fbal)||0, reg=Number(m.reg)||0;
+  var pen=Number(m.pen)||0, reg=Number(m.reg)||0;
+  var fbal=Number(s.data.franchBal)||0; /* B8 OTOMATIS = total Fee franchisee (balance) dari get_franchisee_fee */
   /* Adm Fee OTOMATIS = 2.500 × jumlah transaksi. Net = Final − Adm Fee (= Normal Amount). Total tetap = Final + Penalty. */
   var balTrx=(tu.balTrx||0)+(tu.othTrx||0), pkgTrx=(tu.pkgTrx||0);
   var bal=(tu.balance+tu.other)-VAT_ADMFEE*balTrx, pkg=tu['package']-VAT_ADMFEE*pkgTrx;
@@ -1110,6 +1117,8 @@ function vatReconAoa(){var s=vatState(),x=vatCompute(),lbl=vatMonthLbl(s.period)
     [],[],[],[],['Rekon Selisih '+lbl],
     ['Customer Prepayment (COA)',x.cp],['',x.b16],['',x.b17],['',x.b18],['',x.b19],['',x.b20],
     ['Selisih '+lbl,x.b21],['',x.b22]];}
+/* Terapkan format Accounting (tanpa simbol) ke semua sel angka di worksheet: positif #,##0 · negatif (#,##0) · nol "-" */
+function vatFmtAccounting(ws){var fmt='_(* #,##0_);_(* (#,##0);_(* "-"_);_(@_)';if(!ws||!ws['!ref'])return ws;var rg=XLSX.utils.decode_range(ws['!ref']);for(var R=rg.s.r;R<=rg.e.r;R++){for(var C=rg.s.c;C<=rg.e.c;C++){var cell=ws[XLSX.utils.encode_cell({r:R,c:C})];if(cell&&cell.t==='n')cell.z=fmt;}}return ws;}
 function vatDashHead(){return {'Content-Type':'application/json',apikey:DASH_SB.key,Authorization:'Bearer '+DASH_SB.key};}
 async function vatFetchAllRows(fn,body){
   var r=await fetch(DASH_SB.url+'/rest/v1/rpc/'+fn+'?limit=300000',{method:'POST',headers:vatDashHead(),body:JSON.stringify(body)});
@@ -1150,7 +1159,7 @@ async function vatDownload(){var s=vatState();if(!s.data)return;if(typeof XLSX==
     vatAddSheet(wb,'Receipt Ori',pur);
     vatAddSheet(wb,'Top Up Balance',pur.filter(function(x){return /recharge balance/i.test(x['Product Name']||'');}));
     vatAddSheet(wb,'Top Up Package',pur.filter(function(x){return /^paket/i.test(x['Product Name']||'');}));
-    XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(vatReconAoa()),'VAT Recon');
+    XLSX.utils.book_append_sheet(wb,vatFmtAccounting(XLSX.utils.aoa_to_sheet(vatReconAoa())),'VAT Recon');
     XLSX.writeFile(wb,'Sales '+s.period+'.xlsx');
   }catch(e){alert('Gagal menyiapkan file: '+(e.message||e));}
   finally{if(btn){btn.disabled=false;btn.textContent=lbl0||'Download (7 sheet + VAT Recon)';}}
@@ -1163,10 +1172,10 @@ function renderVAT(){
   var expN=(s.expired&&s.expired.length)||0;
   var expStat=expN?'<span style="font-size:11.5px;color:var(--brand-deep);font-weight:700">Expired manual: '+expN.toLocaleString('id-ID')+' baris ('+(s.expiredFile||'')+')</span>':'<span style="font-size:11.5px;color:var(--text-dim)">Expired: belum diupload</span>';
   var controls='<div class="filterbar"><label style="font-size:12px;font-weight:700;color:var(--text2)">Periode <input type="month" id="vatP" value="'+s.period+'" style="margin-left:6px"></label><label class="btn-sm-outline" style="cursor:pointer">Upload Expired<input type="file" id="vatExpFile" accept=".xlsx,.xls" style="display:none"></label>'+expStat+'<span style="flex:1"></span><button class="btn-sm-outline" id="vatReload">↻ Muat ulang</button><button class="btn2" id="vatDl"'+(s.data?'':' disabled')+'>Download (7 sheet + VAT Recon)</button></div>';
+  var frNote=(s.data&&s.data.franchOk===false)?'<span style="font-size:11.5px;color:var(--red)">· B8 franchisee: jalankan RPC get_franchisee_fee dulu</span>':'<span style="font-size:11.5px;color:var(--text-dim)">· B8 (Franchisee balance) otomatis dari data</span>';
   var manbar='<div class="filterbar" style="gap:12px"><span style="font-size:11.5px;font-weight:800;color:var(--text-dim)">KOMPONEN MANUAL:</span>'
     +'<label style="font-size:11.5px;font-weight:700;color:var(--text2)">Penalty PB Loss '+mi('pen','0')+'</label>'
-    +'<label style="font-size:11.5px;font-weight:700;color:var(--text2)">Franchisee Fee — Balance (B8) '+mi('fbal','0')+'</label>'
-    +'<span style="font-size:11.5px;color:var(--text-dim)">· Adm Fee otomatis (Rp 2.500/trx) · C8/C9 (Franchisee Package) ditahan — menunggu kolom Deducted Fee Package</span></div>';
+    +'<span style="font-size:11.5px;color:var(--text-dim)">· Adm Fee otomatis (Rp 2.500/trx) '+frNote+' · C8/C9 (Franchisee Package) ditahan</span></div>';
   var banner='<div class="datanote"><b>VAT Recon — Output Reconciliation.</b> PB-Top Up &amp; PB-Package <b>dari data live</b> (<code>purchase_report</code>, Status=PAID). Penalty, Adm Fee &amp; Franchisee = input manual (seperti Laura). Rumus: DPP = Gross ÷ 1,11 · VAT = 11%. Format export <b>sama seperti sheet existing</b>. Sumber: 202606 Sales.xlsx + wawancara Laura.</div>';
   var body='';
   if(s.loading)body='<div class="datanote">Menghitung VAT Recon '+s.period+' dari data live…</div>';
@@ -1187,7 +1196,7 @@ function renderVAT(){
     var flags='<div class="konfirm"><h4>Sumber tiap komponen (agar transparan)</h4><ol>'
       +'<li><b>PB-Top Up &amp; PB-Package</b> = <b>net</b> dari data live <code>purchase_report</code> = Final Amount − Rp 2.500/transaksi (= kolom Normal Amount). Cocok dengan hitungan manual Laura.</li>'
       +'<li><b>Other Income (Adm Fee)</b> = <b>otomatis</b> = Rp 2.500 × jumlah transaksi top up.</li>'
-      +'<li><b>Penalty PB Loss</b> = input manual (diisi finance). <b>Franchisee back-out:</b> B8/B9 (balance) aktif via input manual "Franchisee Fee — Balance"; <b>C8/C9 (package) ditahan = 0</b> karena kolom <i>Deducted Fee Package</i> belum ada.</li>'
+      +'<li><b>Penalty PB Loss</b> = input manual (diisi finance). <b>Franchisee back-out:</b> B8/B9 (balance) OTOMATIS = Σ Fee franchisee (balance) ÷ 1,11 × 11%, via RPC get_franchisee_fee; <b>C8/C9 (package) ditahan = 0</b> (menunggu kolom Deducted Fee Package).</li>'
       +'<li><b>DPP &amp; VAT</b> = rumus terkonfirmasi (÷1,11 · ×11%).</li>'
       +'</ol></div>';
     body='<div class="kpi-row" style="grid-template-columns:repeat(4,1fr)">'+kpi+'</div>'+manbar
@@ -1197,7 +1206,7 @@ function renderVAT(){
   }
   c.innerHTML=banner+controls+body;
   var pe=document.getElementById('vatP');if(pe)pe.onchange=function(){s.period=this.value;s.data=null;s.err=null;renderVAT();};
-  ['pen','fbal'].forEach(function(k){var el=document.getElementById('vm_'+k);if(el)el.onchange=function(){vatSetMan(k,Number(this.value)||0);renderVAT();};});
+  ['pen'].forEach(function(k){var el=document.getElementById('vm_'+k);if(el)el.onchange=function(){vatSetMan(k,Number(this.value)||0);renderVAT();};});
   var ef=document.getElementById('vatExpFile');if(ef)ef.onchange=function(){if(this.files.length)vatUploadExpired(this.files[0]);};
   var rl=document.getElementById('vatReload');if(rl)rl.onclick=function(){s.data=null;s.err=null;renderVAT();};
   var dl=document.getElementById('vatDl');if(dl)dl.onclick=vatDownload;
