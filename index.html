@@ -1124,6 +1124,19 @@ function vatReconAoa(){var s=vatState(),x=vatCompute(),lbl=vatMonthLbl(s.period)
     ['Selisih '+lbl,x.b21],['',x.b22]];}
 /* Terapkan format Accounting (tanpa simbol) ke semua sel angka di worksheet: positif #,##0 · negatif (#,##0) · nol "-" */
 function vatFmtAccounting(ws){var fmt='_(* #,##0_);_(* (#,##0);_(* "-"_);_(@_)';if(!ws||!ws['!ref'])return ws;var rg=XLSX.utils.decode_range(ws['!ref']);for(var R=rg.s.r;R<=rg.e.r;R++){for(var C=rg.s.c;C<=rg.e.c;C++){var cell=ws[XLSX.utils.encode_cell({r:R,c:C})];if(cell&&cell.t==='n')cell.z=fmt;}}return ws;}
+/* auto-fit lebar kolom dari isi (scan sampai maxRows baris) */
+function vatAutoWidth(aoa,maxRows){var ncols=0;aoa.forEach(function(r){if(r&&r.length>ncols)ncols=r.length;});var lim=maxRows?Math.min(aoa.length,maxRows):aoa.length;var cols=[];for(var c=0;c<ncols;c++){var max=6;for(var r=0;r<lim;r++){var v=aoa[r]&&aoa[r][c];if(v==null||v==='')continue;var len=(typeof v==='number')?(Math.round(v).toLocaleString('id-ID').length+3):String(v).length;if(len>max)max=len;}cols.push({wch:Math.min(max+1,50)});}return cols;}
+/* VAT Recon sheet dengan FORMULA hidup di tiap sel turunan (bukan value) + cached value + accounting + auto-width */
+function vatReconSheet(){var aoa=vatReconAoa();var ws=XLSX.utils.aoa_to_sheet(aoa);
+  function F(addr,formula){var c=ws[addr];if(c)c.f=formula;else ws[addr]={t:'n',f:formula};}
+  F('F5','SUM(B5:E5)');
+  F('B6','B5/1.11');F('C6','C5/1.11');F('D6','D5/1.11');F('E6','E5/1.11');F('F6','F5/1.11');
+  F('B7','B6*0.11');F('C7','C6*0.11');F('D7','D6*0.11');F('E7','E6*0.11');F('F7','SUM(B7:E7)');
+  F('F8','SUM(B8:E8)');
+  F('B9','B8*0.11');F('C9','C8*0.11');F('D9','D8*0.11');F('E9','E8*0.11');F('F9','F8*0.11');
+  F('B15','B5+C5');F('B16','-B7-B9');F('B17','-C7');F('B19','-C6');F('B20','SUM(B8:B9)');
+  F('B21','SUM(B15:B20)');F('B22','B5/1.11+B18-B21+B8');
+  ws['!cols']=vatAutoWidth(aoa);vatFmtAccounting(ws);return ws;}
 function vatDashHead(){return {'Content-Type':'application/json',apikey:DASH_SB.key,Authorization:'Bearer '+DASH_SB.key};}
 async function vatFetchAllRows(fn,body){
   var r=await fetch(DASH_SB.url+'/rest/v1/rpc/'+fn+'?limit=300000',{method:'POST',headers:vatDashHead(),body:JSON.stringify(body)});
@@ -1131,7 +1144,7 @@ async function vatFetchAllRows(fn,body){
   var j=await r.json();if(!Array.isArray(j))throw new Error(fn+': '+(j&&j.message||'respons tak terduga'));return j;}
 function vatAddSheet(wb,name,rows){var ws;
   if(rows&&rows.length){var keys=[],seen={};rows.forEach(function(r){Object.keys(r).forEach(function(k){if(!seen[k]){seen[k]=1;keys.push(k);}});});
-    var aoa=[keys];rows.forEach(function(r){aoa.push(keys.map(function(k){var v=r[k];return v===undefined?null:v;}));});ws=XLSX.utils.aoa_to_sheet(aoa);}
+    var aoa=[keys];rows.forEach(function(r){aoa.push(keys.map(function(k){var v=r[k];return v===undefined?null:v;}));});ws=XLSX.utils.aoa_to_sheet(aoa);ws['!cols']=vatAutoWidth(aoa,200);}
   else ws=XLSX.utils.aoa_to_sheet([['(tidak ada data)']]);
   XLSX.utils.book_append_sheet(wb,ws,name);}
 async function vatUploadExpired(file){
@@ -1164,7 +1177,7 @@ async function vatDownload(){var s=vatState();if(!s.data)return;if(typeof XLSX==
     vatAddSheet(wb,'Receipt Ori',pur);
     vatAddSheet(wb,'Top Up Balance',pur.filter(function(x){return /recharge balance/i.test(x['Product Name']||'');}));
     vatAddSheet(wb,'Top Up Package',pur.filter(function(x){return /^paket/i.test(x['Product Name']||'');}));
-    XLSX.utils.book_append_sheet(wb,vatFmtAccounting(XLSX.utils.aoa_to_sheet(vatReconAoa())),'VAT Recon');
+    XLSX.utils.book_append_sheet(wb,vatReconSheet(),'VAT Recon');
     XLSX.writeFile(wb,'Sales '+s.period+'.xlsx');
   }catch(e){alert('Gagal menyiapkan file: '+(e.message||e));}
   finally{if(btn){btn.disabled=false;btn.textContent=lbl0||'Download (7 sheet + VAT Recon)';}}
