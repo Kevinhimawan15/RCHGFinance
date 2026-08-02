@@ -154,6 +154,45 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);-webkit-font
 .flowbtn{border:1px solid var(--border2);background:var(--surface);border-radius:20px;padding:7px 14px;font-size:12.5px;font-weight:700;color:var(--text2);cursor:pointer;font-family:var(--font)}
 .flowbtn:hover{border-color:var(--brand)}
 .flowbtn.active{background:var(--text);color:#fff;border-color:var(--text)}
+.flow-h{font-size:13px;font-weight:800;margin:0 0 12px;padding:7px 14px;border-radius:9px;display:inline-block}
+.flow-asis{color:#a12622;background:#fdecec;border:1px solid #f5b5b5}
+.flow-new{color:#1f7a3d;background:#e4f5e9;border:1px solid #b8e3c6}
+.swim{overflow:hidden;margin-bottom:10px}
+.swim-scale{border:1px solid var(--border2);border-radius:12px;overflow:hidden;background:#fff;margin:0 auto}
+.sw-headrow{display:flex;background:#2b3a4a}
+.sw-head{flex:1;color:#fff;font-weight:800;font-size:12.5px;letter-spacing:.2px;text-align:center;padding:11px 8px;border-right:1px solid rgba(255,255,255,.14);box-sizing:border-box}
+.sw-head:last-child{border-right:none}
+.sw-body{position:relative;background:#fbfcfd}
+.sw-svg{position:absolute;left:0;top:0;pointer-events:none;overflow:visible}
+.swdiv{stroke:#e9edf1;stroke-width:1}
+.swpath{fill:none;stroke:#8391a1;stroke-width:1.6}
+.swtxt{font-size:12px;fill:#566;font-weight:700;text-anchor:middle}
+.swnode{position:absolute;transform:translate(-50%,-50%);width:212px;box-sizing:border-box;border-radius:12px;padding:10px 13px;font-size:11.5px;font-weight:700;text-align:center;line-height:1.3;box-shadow:0 1px 2px rgba(20,30,45,.05)}
+.swn-fin{background:#e9f6ee;border:1.5px solid #2f6b4f;color:#1c5238}
+.swn-rc{background:#e8f0f9;border:1.5px solid #2b4a6b;color:#233b57}
+.swn-man{background:#f3f4f6;border:1.5px solid #9aa2ab;color:#3d444c}
+.swn-dec{background:#fdecec;border:1.5px solid #d0555a;color:#a12622}
+.swsub{font-size:10px;font-weight:600;opacity:.82;margin-top:3px;line-height:1.25;overflow-wrap:anywhere;word-break:break-word}
+.sw-start{position:absolute;transform:translate(-50%,-50%);width:18px;height:18px;border-radius:50%;background:#2b3a4a}
+.sw-end{position:absolute;transform:translate(-50%,-50%);width:20px;height:20px;border-radius:50%;background:#fff;border:2.5px solid #2b3a4a}
+.sw-end::after{content:"";position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:9px;height:9px;border-radius:50%;background:#2b3a4a}
+.swim-legend{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-bottom:16px;padding:8px 12px;background:var(--surface2);border-radius:9px}
+.lchip{display:inline-block;font-size:9.5px;font-weight:800;letter-spacing:.02em;border-radius:5px;padding:2px 7px}
+.lchip-rc{color:#1f5f9e;background:#e6f0fb;border:1px solid #b9d4f0}
+.lchip-fin{color:#1f7a3d;background:#e4f5e9;border:1px solid #b8e3c6}
+.lchip-man{color:#5a5a5a;background:#eee;border:1px solid #d8d8d8}
+.fnode.lane-rc{border-left:4px solid #1f5f9e}
+.fnode.lane-fin{border-left:4px solid #1f7a3d}
+.fnode.lane-man{border-left:4px solid #a3a3a3}
+.lvl{display:inline-block;font-size:10px;font-weight:800;border-radius:5px;padding:2px 8px;white-space:nowrap}
+.lvl-hi{color:#a12622;background:#fdecec;border:1px solid #f5b5b5}
+.lvl-mid{color:#8a5a00;background:#fff3d6;border:1px solid #f0d18a}
+.lvl-lo{color:#1f7a3d;background:#e4f5e9;border:1px solid #b8e3c6}
+.dtag{font-size:9.5px;font-weight:700;border-radius:4px;padding:1px 6px;white-space:nowrap}
+.dtag-m{color:#1f5f9e;background:#e6f0fb;border:1px solid #b9d4f0}
+.dtag-e{color:#8a5a00;background:#fff3d6;border:1px solid #f0d18a}
+.cmp-tbl td:nth-child(2){color:#a12622}
+.cmp-tbl td:nth-child(3){color:#1f7a3d}
 /* monitoring control */
 .btn-sm-outline{border:1px solid var(--border2);background:var(--surface);color:var(--text2);border-radius:9px;padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer;font-family:var(--font)}
 .btn-sm-outline:hover{border-color:var(--brand);color:var(--brand-deep)}
@@ -492,29 +531,115 @@ function renderMC(){
   const pc=document.getElementById('perClose'); if(pc)pc.onclick=()=>{const p=perState();archiveCur(p);p.cur=curPeriodLabel();perSave(p);renderMC();};
 }
 /* flow renderer + per-case flows (grounded in each case's As-Is) */
-function fnodeHTML(n){const cls=n.kind==='start'?'f-start':n.kind==='end'?'f-end':n.kind==='dec'?'f-dec':'';const wf=n.wf?`<span class="wfref">${n.wf}</span> `:'';const sub=n.sub?`<div class="fsub">${n.sub}</div>`:'';const warn=n.warn?`<div class="fwarn">⚠ ${n.warn}</div>`:'';return `<div class="fnode ${cls}">${wf}<span class="flabel">${n.label}</span>${sub}${warn}</div>`;}
+const LANE_NAME={rc:'admin.recharge.sh',fin:'RchgFinance',man:'Finance / manual'};
+function fnodeHTML(n){const cls=n.kind==='start'?'f-start':n.kind==='end'?'f-end':n.kind==='dec'?'f-dec':'';const wf=n.wf?`<span class="wfref">${n.wf}</span> `:'';const sub=n.sub?`<div class="fsub">${n.sub}</div>`:'';const warn=n.warn?`<div class="fwarn">⚠ ${n.warn}</div>`:'';const lane=n.lane?` lane-${n.lane}`:'';const chip=n.lane?`<div><span class="lchip lchip-${n.lane}">${LANE_NAME[n.lane]}</span></div>`:'';return `<div class="fnode ${cls}${lane}">${chip}${wf}<span class="flabel">${n.label}</span>${sub}${warn}</div>`;}
 function flowRender(nodes){let h='';nodes.forEach((n,i)=>{if(i>0)h+='<div class="farrow">↓</div>';if(n.branch)h+=`<div class="fbranch"><div class="fbcol"><div class="fblabel">${n.branch.ya.lbl}</div>${fnodeHTML(n.branch.ya)}</div><div class="fbcol"><div class="fblabel">${n.branch.tidak.lbl}</div>${fnodeHTML(n.branch.tidak)}</div></div>`;else h+=fnodeHTML(n);});return `<div class="flow">${h}</div>`;}
+/* Swimlane activity diagram — kolom per sistem (RchgFinance · admin.recharge.sh · manual) + panah antar-lane. */
+/* Registry model diisi tiap swimSVG; swimWireAll() menggambar panah edge-to-edge (baca tinggi box asli) + skala-fit lebar. */
+var __SWIM=[], __SWIMSEQ=0;
+function swimSVG(nodes){
+  var LN=[['fin','RchgFinance'],['rc','admin.recharge.sh'],['man','manual']];
+  var col={fin:0,rc:1,man:2}, LANE=276, rowH=132, W=LN.length*LANE;
+  function cx(c){return c*LANE+LANE/2;}
+  function laneOf(l){return col[l]!=null?col[l]:2;}
+  var did='swd'+(++__SWIMSEQ);
+  var items=[{t:'start',lane:(nodes[0]&&nodes[0].lane)||'man'}];
+  nodes.forEach(function(n){if(n.branch)items.push({t:'branch',ya:n.branch.ya,tidak:n.branch.tidak});else items.push({t:'node',n:n});});
+  items.push({t:'end',lane:(nodes[nodes.length-1]&&nodes[nodes.length-1].lane)||'man'});
+  // assign rows: same-lane branch stacks over 2 rows (ya then tidak), diff-lane branch side-by-side in 1 row
+  var row=0;
+  items.forEach(function(it,i){it.id=did+'_'+i;
+    if(it.t==='branch'){
+      var cy=laneOf(it.ya.lane), ct=laneOf(it.tidak.lane);
+      it.same=(cy===ct); it.yaX=cx(cy); it.tdX=cx(ct);
+      it.yaY=row*rowH+rowH/2; it.tdY=(it.same?row+1:row)*rowH+rowH/2;
+      row+=it.same?2:1;
+    } else { it.x=cx(laneOf(it.t==='node'?it.n.lane:it.lane)); it.y=row*rowH+rowH/2; row+=1; }
+  });
+  var H=row*rowH;
+  // edge model referencing DOM ids (geometry resolved later from real box sizes)
+  var edges=[],prev=[{dom:items[0].id}];
+  for(var i=1;i<items.length;i++){var it=items[i];
+    if(it.t==='branch'){
+      prev.forEach(function(p){edges.push({from:p.dom,to:it.id+'_ya',l:it.ya.lbl});edges.push({from:p.dom,to:it.id+'_td',l:it.tidak.lbl,route:it.same?'sideR':null});});
+      prev=[{dom:it.id+'_ya',ya:true,sb:it.same},{dom:it.id+'_td',sb:it.same}];
+    } else {
+      prev.forEach(function(p){edges.push({from:p.dom,to:it.id,route:(p.sb&&p.ya)?'sideL':null});});
+      prev=[{dom:it.id}];
+    }
+  }
+  __SWIM.push({did:did,W:W,H:H,LANE:LANE,edges:edges});
+  var nh='';
+  items.forEach(function(it){
+    if(it.t==='start')nh+='<div class="sw-start" id="'+it.id+'" style="left:'+it.x+'px;top:'+it.y+'px"></div>';
+    else if(it.t==='end')nh+='<div class="sw-end" id="'+it.id+'" style="left:'+it.x+'px;top:'+it.y+'px"></div>';
+    else if(it.t==='node'){var n=it.n,cc=n.kind==='dec'?'swn-dec':'swn-'+(n.lane||'man');var wf=n.wf?'<span class="wfref">'+n.wf+'</span> ':'';var sub=n.sub?'<div class="swsub">'+n.sub+'</div>':'';nh+='<div class="swnode '+cc+'" id="'+it.id+'" style="left:'+it.x+'px;top:'+it.y+'px">'+wf+n.label+sub+'</div>';}
+    else if(it.t==='branch'){nh+='<div class="swnode swn-'+(it.ya.lane||'man')+'" id="'+it.id+'_ya" style="left:'+it.yaX+'px;top:'+it.yaY+'px">'+it.ya.label+'</div><div class="swnode swn-'+(it.tidak.lane||'man')+'" id="'+it.id+'_td" style="left:'+it.tdX+'px;top:'+it.tdY+'px">'+it.tidak.label+'</div>';}});
+  var divs='';for(var c=1;c<LN.length;c++)divs+='<line class="swdiv" x1="'+(c*LANE)+'" y1="0" x2="'+(c*LANE)+'" y2="'+H+'"/>';
+  var svg='<svg class="sw-svg" id="'+did+'_svg" width="'+W+'" height="'+H+'"><defs><marker id="swar" markerWidth="10" markerHeight="10" refX="7" refY="3.2" orient="auto"><path d="M0,0 L7,3.2 L0,6.4 Z" fill="#8391a1"/></marker></defs>'+divs+'</svg>';
+  var heads='';LN.forEach(function(l){heads+='<div class="sw-head">'+l[1]+'</div>';});
+  return '<div class="swim" data-did="'+did+'"><div class="swim-scale" id="'+did+'_scale" style="width:'+W+'px"><div class="sw-headrow">'+heads+'</div><div class="sw-body" style="height:'+H+'px">'+svg+nh+'</div></div></div>';
+}
+var __SVGNS='http://www.w3.org/2000/svg';
+function swimWireAll(){
+  __SWIM.forEach(function(m){
+    var svg=document.getElementById(m.did+'_svg'); if(!svg) return;
+    [].slice.call(svg.querySelectorAll('.swpath,.swtxt')).forEach(function(e){e.remove();});
+    function rect(id){var el=document.getElementById(id);if(!el)return null;var w=el.offsetWidth,h=el.offsetHeight,cx=el.offsetLeft,cy=el.offsetTop;return {cx:cx,top:cy-h/2,bottom:cy+h/2,left:cx-w/2,right:cx+w/2};}
+    m.edges.forEach(function(e){
+      var a=rect(e.from),b=rect(e.to); if(!a||!b)return;
+      var x1=a.cx,y1=a.bottom,x2=b.cx,y2=b.top,d,lx,ly;
+      if(e.route==='sideR'){var li=Math.floor(a.cx/m.LANE),xr=(li+1)*m.LANE-16,yb=y1+20;d='M'+x1+','+y1+' L'+x1+','+yb+' L'+xr+','+yb+' L'+xr+','+y2+' L'+x2+','+y2;lx=(x1+xr)/2;ly=yb-6;}
+      else if(e.route==='sideL'){var li2=Math.floor(a.cx/m.LANE),xl=li2*m.LANE+16,ye=y2-20;d='M'+x1+','+y1+' L'+xl+','+y1+' L'+xl+','+ye+' L'+x2+','+ye+' L'+x2+','+y2;lx=xl;ly=y1+18;}
+      else if(Math.abs(x1-x2)<3){d='M'+x1+','+y1+' L'+x2+','+y2;lx=x1+9;ly=(y1+y2)/2;}
+      else{var my=(y1+y2)/2;d='M'+x1+','+y1+' L'+x1+','+my+' L'+x2+','+my+' L'+x2+','+y2;lx=(x1+x2)/2;ly=my-6;}
+      var p=document.createElementNS(__SVGNS,'path');p.setAttribute('class','swpath');p.setAttribute('d',d);p.setAttribute('marker-end','url(#swar)');svg.appendChild(p);
+      if(e.l){var t=document.createElementNS(__SVGNS,'text');t.setAttribute('class','swtxt');t.setAttribute('x',lx);t.setAttribute('y',ly);t.textContent='['+e.l+']';svg.appendChild(t);}
+    });
+    var scaleEl=document.getElementById(m.did+'_scale'),swim=scaleEl.closest('.swim');
+    var avail=swim.clientWidth||m.W, s=Math.min(avail/m.W,1);
+    scaleEl.style.transformOrigin='top left';
+    scaleEl.style.transform='scale('+s+')';
+    swim.style.height=(scaleEl.offsetHeight*s)+'px';
+  });
+}
+/* Case dengan varian <key>_asis: 2 swimlane terpisah (As-Is & Baru). Lainnya flowchart linear biasa. */
+function flowFor(key){__SWIM=[];var asis=FLOWS[key+'_asis'];if(!asis)return flowRender(FLOWS[key]);
+  var newlbl={sr:'otomatis via dashboard (VAT Recon)',rs:'dengan bantuan dashboard'}[key]||'dengan dashboard';
+  return '<div class="flow-h flow-asis">As-Is · proses manual</div>'+swimSVG(asis)+'<div class="flow-h flow-new" style="margin-top:20px">Baru · '+newlbl+'</div>'+swimSVG(FLOWS[key]);}
 const FLOWS={
+ sr_asis:[
+   {kind:'start',lane:'rc',label:'Download rent transaction (status Expired / Wipe / Return)',sub:'admin.recharge.sh'},
+   {kind:'proc',lane:'man',label:'Gabung ke sheet Ori → pecah manual',sub:'Regular (PM balance) · Package (PM package) · Franchisee (2 terminal)'},
+   {kind:'proc',lane:'rc',label:'Download top up transaction → Receipt Ori → pecah',sub:'Top Up Balance · Top Up Package'},
+   {kind:'proc',lane:'man',label:'Hitung manual di sheet VAT Recon (Excel)',sub:'Net (Final − Rp 2.500/trx) → DPP ÷1,11 → VAT 11% · back-out Franchisee · Rekon Selisih',warn:'Semua manual di Excel → makan waktu &amp; rawan human error'},
+   {kind:'end',lane:'man',label:'Lapor SPT PPN (Coretax)'},
+ ],
  sr:[
-   {kind:'start',label:'Buka halaman "Data Expired/Wipe/Return"',sub:'sumber: RchgDashboard rent_report (bukan export manual lagi)'},
-   {kind:'proc',label:'Pilih periode (bulan) + status Expired / Wipe / Return'},
-   {kind:'proc',label:'Sistem tarik & agregat data via RPC',sub:'get_rent_summary (harian) + get_rent_city_range (per kota)'},
-   {kind:'dec',label:'Data sudah direkonsiliasi vs export manual?',warn:'Rekonsiliasi 1× untuk validasi sumber — masih pending'},
-   {branch:{ya:{lbl:'Ya',label:'Lanjut pakai data dashboard'},tidak:{lbl:'Belum',label:'Bandingkan total dulu vs export manual finance (1 periode)'}}},
-   {kind:'proc',label:'Hitung Gross → DPP → PPN (tarif 11%)',warn:'Rumus/tarif PPN ASUMSI → konfirmasi finance/konsultan pajak'},
-   {kind:'proc',label:'Export hasil (Excel) → lampiran VAT Recon'},
-   {kind:'end',label:'Lapor SPT PPN (Coretax)'},
+   {kind:'start',lane:'fin',label:'Buka halaman VAT Recon di dashboard → pilih periode'},
+   {kind:'proc',lane:'fin',label:'Sistem tarik purchase_report (top up) + rent_report (E/W/R) via RPC',sub:'otomatis: Net (Final −2.500/trx) · DPP ÷1,11 · VAT 11% · Franchisee back-out · Rekon Selisih (B22=0)'},
+   {kind:'proc',lane:'man',label:'Import data Expired (upload manual di halaman VAT Recon)',sub:'expired di rent_report basi ~14 Mei → dilengkapi via upload'},
+   {kind:'proc',lane:'fin',label:'Download 7-sheet + VAT Recon',sub:'format sama file Laura · formula hidup · accounting'},
+   {kind:'end',lane:'man',label:'Lapor SPT PPN (Coretax)'},
+ ],
+ rs_asis:[
+   {kind:'start',lane:'rc',label:'Buka Dashboard Recharge → Revenue Sharing',sub:'admin.recharge.sh/dashboard/transaction/revenue-sharing'},
+   {kind:'proc',lane:'rc',label:'Download data revenue sharing',warn:'Batas fetch 500 baris → unduh ≥2 batch (mis. A–M, N–Z)'},
+   {kind:'proc',lane:'man',label:'Gabung batch jadi 1 master manual di Excel',sub:'Partner · Start/End Date · Total Revenue/VAT/Tax · Status'},
+   {kind:'dec',lane:'man',label:'Seleksi partner Active',warn:'Belum ada flag Active/Inactive → dipilih manual satu per satu'},
+   {kind:'proc',lane:'rc',wf:'WF1',label:'Generate & kirim Revenue Sharing report ke partner'},
+   {kind:'dec',lane:'man',label:'Partner wajib Berita Acara?',warn:'Berita Acara HANYA untuk partner tertentu'},
+   {branch:{ya:{lbl:'Ya',lane:'man',label:'Susun Berita Acara manual (Word) + nomor surat manual → ttd mba Evi (Direktur) → kirim'},tidak:{lbl:'Tidak',lane:'man',label:'Cukup RS report (tanpa Berita Acara)'}}},
+   {kind:'end',lane:'man',wf:'WF2',label:'Bill Import Revenue Sharing ke Zoho (manual)'},
  ],
  rs:[
-   {kind:'start',label:'Buka Dashboard Recharge → Revenue Sharing',sub:'admin.recharge.sh/dashboard/transaction/revenue-sharing'},
-   {kind:'proc',label:'Download data revenue sharing',warn:'Batas fetch 500 baris → unduh ≥2 batch (mis. A–M, N–Z)'},
-   {kind:'proc',label:'Gabung batch jadi 1 master',sub:'Partner · Start/End Date · Total Revenue/VAT/Tax · Status'},
-   {kind:'dec',label:'Seleksi partner Active',warn:'Belum ada flag Active/Inactive → dipilih manual'},
-   {kind:'proc',label:'Pilih partner aktif + periode yang benar'},
-   {kind:'proc',wf:'WF1',label:'Generate & kirim Revenue Sharing report ke partner'},
-   {kind:'dec',label:'Partner termasuk yang wajib Berita Acara?',warn:'Berita Acara dibuat finance HANYA untuk partner tertentu'},
-   {branch:{ya:{lbl:'Ya',label:'Finance susun Berita Acara → ditandatangani mba Evi (Direktur PT JTS) → dikirim ke partner'},tidak:{lbl:'Tidak',label:'Cukup Revenue Sharing report dari dashboard (tanpa Berita Acara)'}}},
-   {kind:'end',wf:'WF2',label:'Lanjut: Bill Import Revenue Sharing ke Zoho'},
+   {kind:'start',lane:'fin',label:'Upload file download RS ke halaman "Upload & Combine"',sub:'auto-gabung 2 batch + deteksi baris off-period',warn:'menunggu fix filter Event di admin.recharge.sh'},
+   {kind:'proc',lane:'fin',label:'Halaman "Partner Active/Inactive" — auto-bandingkan vs Master Terminal (RchgOps)',sub:'terdaftar = Active · tidak terdaftar = kandidat non-aktif → informasikan ke admin Ops'},
+   {kind:'proc',lane:'fin',label:'Lihat daftar partner Inactive',sub:'partner di RS tapi tidak terdaftar di Master Terminal → kandidat non-aktif'},
+   {kind:'proc',lane:'man',label:'Kirim ke admin untuk proses inactive partner',sub:'admin update status partner di sistem sumber'},
+   {kind:'proc',lane:'fin',wf:'WF1',label:'Generate RS report + draft Berita Acara (template)',sub:'nomor surat otomatis via halaman Penomoran Dokumen',warn:'auto-generate Berita Acara = target (belum dibangun)'},
+   {kind:'proc',lane:'man',label:'Director Signing (mba Evi) → kirim ke partner'},
+   {kind:'end',lane:'man',wf:'WF2',label:'Bill Import Revenue Sharing ke Zoho'},
  ],
  bp:[
    {kind:'start',label:'Bukti Potong terbit (setelah pemotongan pajak)'},
@@ -585,7 +710,35 @@ function wfHTML(){
       <button class="flowbtn" data-flow="sr">Sales Report SPT PPN</button>
       <button class="flowbtn" data-flow="bp">Bukti Potong</button>
     </div>
-    <div id="flowBox">${flowRender(FLOWS.rs)}</div>
+    <div id="flowBox">${flowFor('rs')}</div>
+    <div class="sec-lbl" style="margin-top:26px">Masalah &amp; Tingkat Kesalahan</div>
+    <div class="datanote" style="font-size:12px"><span class="dtag dtag-m">terukur</span> = dari data nyata · <span class="dtag dtag-e">penilaian</span> = risiko, belum diukur (bukan angka asumsi).</div>
+    <table class="wf-tbl">
+      <thead><tr><th>Masalah</th><th>Tingkat kesalahan</th><th>Dasar</th></tr></thead>
+      <tbody>
+        <tr><td>Jumlah transaksi <code>Return</code> di data (Supabase) lebih sedikit dari hasil download admin.recharge.sh untuk periode sama</td><td><span class="lvl lvl-mid">Sedang</span> Jun: 43.097 vs 51.597 (±8.500 baris / ±16% belum masuk)</td><td><span class="dtag dtag-m">terukur</span></td></tr>
+        <tr><td>Baris franchisee kurang di data</td><td><span class="lvl lvl-mid">Sedang</span> ±81% baris (7 vs 37) · nilai kecil</td><td><span class="dtag dtag-m">terukur</span></td></tr>
+        <tr><td>Kolom <code>Fee</code> tersimpan sebagai teks → SUM = 0</td><td><span class="lvl lvl-lo">Sudah diperbaiki</span> konversi ke angka</td><td><span class="dtag dtag-m">terukur</span></td></tr>
+        <tr><td>Hitung PPN / split / merge manual di Excel</td><td><span class="lvl lvl-hi">Tinggi</span> rawan salah rumus/ketik</td><td><span class="dtag dtag-e">penilaian</span></td></tr>
+        <tr><td>Seleksi partner Active manual (tak ada flag)</td><td><span class="lvl lvl-hi">Tinggi</span> risiko bayar ke partner non-aktif</td><td><span class="dtag dtag-e">penilaian</span></td></tr>
+        <tr><td>Batas fetch 500 baris → gabung 2 batch manual</td><td><span class="lvl lvl-mid">Sedang</span> risiko baris terlewat saat gabung</td><td><span class="dtag dtag-e">penilaian</span></td></tr>
+        <tr><td>Berita Acara + nomor surat manual (Word)</td><td><span class="lvl lvl-mid">Sedang</span> risiko salah nomor/format</td><td><span class="dtag dtag-e">penilaian</span></td></tr>
+      </tbody>
+    </table>
+    <div class="sec-lbl" style="margin-top:26px">Perbandingan As-Is vs New System</div>
+    <table class="wf-tbl cmp-tbl">
+      <thead><tr><th>Aspek</th><th>As-Is (manual)</th><th>New System (RchgFinance)</th></tr></thead>
+      <tbody>
+        <tr><td><b>Ambil data</b></td><td>Download manual admin.recharge.sh (≥2 batch, limit 500 baris)</td><td>Auto tarik dari Supabase (<code>rent_report</code> + <code>purchase_report</code>) via RPC</td></tr>
+        <tr><td><b>Gabung &amp; split data</b></td><td>Manual di Excel (Ori → Regular/Package/Franchisee, Top Up)</td><td>Otomatis by Payment Method / Product / Terminal</td></tr>
+        <tr><td><b>Hitung PPN (Sales)</b></td><td>Adm Fee, DPP, VAT dihitung manual</td><td>Otomatis: Adm Fee 2.500/trx · DPP ÷1,11 · VAT 11% · Franchisee back-out</td></tr>
+        <tr><td><b>Rekon Selisih</b></td><td>Manual, tanpa self-check</td><td>Otomatis, self-check <b>B22 = 0</b></td></tr>
+        <tr><td><b>Seleksi partner (RS)</b></td><td>Manual satu per satu (tak ada flag)</td><td>Auto bandingkan vs Master Terminal → daftar kandidat Inactive</td></tr>
+        <tr><td><b>Berita Acara (RS)</b></td><td>Word manual + nomor surat manual</td><td>Draft template + nomor otomatis (Penomoran Dokumen)</td></tr>
+        <tr><td><b>Output Excel</b></td><td>Format &amp; rumus diketik manual</td><td>Auto: format accounting + formula hidup + auto-fit kolom</td></tr>
+        <tr><td><b>Waktu</b></td><td>±½–3 hari / bulan (disebut tim)</td><td>Menit (setelah data lengkap)</td></tr>
+      </tbody>
+    </table>
     <a class="link" href="analisis-bisnis.html" target="_blank" style="margin-top:18px">Buka Analisis Bisnis lengkap →</a>`;
 }
 
@@ -1298,8 +1451,10 @@ function render(view){
   // wire summary card clicks
   c.querySelectorAll('.sum[data-go]').forEach(s=>s.onclick=()=>go(s.dataset.go));
   // wire flow selector (Workflow view)
-  c.querySelectorAll('.flowbtn').forEach(b=>b.onclick=()=>{c.querySelectorAll('.flowbtn').forEach(x=>x.classList.remove('active'));b.classList.add('active');document.getElementById('flowBox').innerHTML=flowRender(FLOWS[b.dataset.flow]);});
+  c.querySelectorAll('.flowbtn').forEach(b=>b.onclick=()=>{c.querySelectorAll('.flowbtn').forEach(x=>x.classList.remove('active'));b.classList.add('active');document.getElementById('flowBox').innerHTML=flowFor(b.dataset.flow);swimWireAll();setTimeout(swimWireAll,80);});
+  if(view==='wf'){swimWireAll();setTimeout(swimWireAll,80);if(document.fonts&&document.fonts.ready)document.fonts.ready.then(swimWireAll);}
 }
+var __swimRz;window.addEventListener('resize',function(){clearTimeout(__swimRz);__swimRz=setTimeout(swimWireAll,120);});
 function go(view){render(view);document.getElementById('sidebar').classList.remove('open');}
 
 /* nav + login + mobile */
