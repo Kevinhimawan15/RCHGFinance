@@ -550,10 +550,13 @@ function swimSVG(nodes){
   var row=0;
   items.forEach(function(it,i){it.id=did+'_'+i;
     if(it.t==='branch'){
-      var cy=laneOf(it.ya.lane), ct=laneOf(it.tidak.lane);
-      it.same=(cy===ct); it.yaX=cx(cy); it.tdX=cx(ct);
-      it.yaY=row*rowH+rowH/2; it.tdY=(it.same?row+1:row)*rowH+rowH/2;
-      row+=it.same?2:1;
+      if(it.tidak&&it.tidak.end){ it.skip=true; it.yaX=cx(laneOf(it.ya.lane)); it.yaY=row*rowH+rowH/2; row+=1; }
+      else{
+        var cy=laneOf(it.ya.lane), ct=laneOf(it.tidak.lane);
+        it.same=(cy===ct); it.yaX=cx(cy); it.tdX=cx(ct);
+        it.yaY=row*rowH+rowH/2; it.tdY=(it.same?row+1:row)*rowH+rowH/2;
+        row+=it.same?2:1;
+      }
     } else { it.x=cx(laneOf(it.t==='node'?it.n.lane:it.lane)); it.y=row*rowH+rowH/2; row+=1; }
   });
   var H=row*rowH;
@@ -561,8 +564,14 @@ function swimSVG(nodes){
   var edges=[],prev=[{dom:items[0].id}];
   for(var i=1;i<items.length;i++){var it=items[i];
     if(it.t==='branch'){
-      prev.forEach(function(p){edges.push({from:p.dom,to:it.id+'_ya',l:it.ya.lbl});edges.push({from:p.dom,to:it.id+'_td',l:it.tidak.lbl,route:it.same?'sideR':null});});
-      prev=[{dom:it.id+'_ya',ya:true,sb:it.same},{dom:it.id+'_td',sb:it.same}];
+      if(it.skip){
+        var endId=items[items.length-1].id;
+        prev.forEach(function(p){edges.push({from:p.dom,to:it.id+'_ya',l:it.ya.lbl});edges.push({from:p.dom,to:endId,l:it.tidak.lbl,route:'skipEnd'});});
+        prev=[{dom:it.id+'_ya'}];
+      } else {
+        prev.forEach(function(p){edges.push({from:p.dom,to:it.id+'_ya',l:it.ya.lbl});edges.push({from:p.dom,to:it.id+'_td',l:it.tidak.lbl,route:it.same?'sideR':null});});
+        prev=[{dom:it.id+'_ya',ya:true,sb:it.same},{dom:it.id+'_td',sb:it.same}];
+      }
     } else {
       prev.forEach(function(p){edges.push({from:p.dom,to:it.id,route:(p.sb&&p.ya)?'sideL':null});});
       prev=[{dom:it.id}];
@@ -574,7 +583,7 @@ function swimSVG(nodes){
     if(it.t==='start')nh+='<div class="sw-start" id="'+it.id+'" style="left:'+it.x+'px;top:'+it.y+'px"></div>';
     else if(it.t==='end')nh+='<div class="sw-end" id="'+it.id+'" style="left:'+it.x+'px;top:'+it.y+'px"></div>';
     else if(it.t==='node'){var n=it.n,cc=n.kind==='dec'?'swn-dec':'swn-'+(n.lane||'man');var wf=n.wf?'<span class="wfref">'+n.wf+'</span> ':'';var sub=n.sub?'<div class="swsub">'+n.sub+'</div>':'';nh+='<div class="swnode '+cc+'" id="'+it.id+'" style="left:'+it.x+'px;top:'+it.y+'px">'+wf+n.label+sub+'</div>';}
-    else if(it.t==='branch'){nh+='<div class="swnode swn-'+(it.ya.lane||'man')+'" id="'+it.id+'_ya" style="left:'+it.yaX+'px;top:'+it.yaY+'px">'+it.ya.label+'</div><div class="swnode swn-'+(it.tidak.lane||'man')+'" id="'+it.id+'_td" style="left:'+it.tdX+'px;top:'+it.tdY+'px">'+it.tidak.label+'</div>';}});
+    else if(it.t==='branch'){var ys=it.ya.sub?'<div class="swsub">'+it.ya.sub+'</div>':'';nh+='<div class="swnode swn-'+(it.ya.lane||'man')+'" id="'+it.id+'_ya" style="left:'+it.yaX+'px;top:'+it.yaY+'px">'+it.ya.label+ys+'</div>';if(!it.skip){var ts=it.tidak.sub?'<div class="swsub">'+it.tidak.sub+'</div>':'';nh+='<div class="swnode swn-'+(it.tidak.lane||'man')+'" id="'+it.id+'_td" style="left:'+it.tdX+'px;top:'+it.tdY+'px">'+it.tidak.label+ts+'</div>';}}});
   var divs='';for(var c=1;c<LN.length;c++)divs+='<line class="swdiv" x1="'+(c*LANE)+'" y1="0" x2="'+(c*LANE)+'" y2="'+H+'"/>';
   var svg='<svg class="sw-svg" id="'+did+'_svg" width="'+W+'" height="'+H+'"><defs><marker id="swar" markerWidth="10" markerHeight="10" refX="7" refY="3.2" orient="auto"><path d="M0,0 L7,3.2 L0,6.4 Z" fill="#8391a1"/></marker></defs>'+divs+'</svg>';
   var heads='';LN.forEach(function(l){heads+='<div class="sw-head">'+l[1]+'</div>';});
@@ -589,7 +598,8 @@ function swimWireAll(){
     m.edges.forEach(function(e){
       var a=rect(e.from),b=rect(e.to); if(!a||!b)return;
       var x1=a.cx,y1=a.bottom,x2=b.cx,y2=b.top,d,lx,ly;
-      if(e.route==='sideR'){var li=Math.floor(a.cx/m.LANE),xr=(li+1)*m.LANE-16,yb=y1+20;d='M'+x1+','+y1+' L'+x1+','+yb+' L'+xr+','+yb+' L'+xr+','+y2+' L'+x2+','+y2;lx=(x1+xr)/2;ly=yb-6;}
+      if(e.route==='skipEnd'){var lie=Math.floor(a.cx/m.LANE),xe=lie*m.LANE+18,yb0=y1+18;d='M'+x1+','+y1+' L'+x1+','+yb0+' L'+xe+','+yb0+' L'+xe+','+y2+' L'+x2+','+y2;lx=xe+16;ly=yb0-6;}
+      else if(e.route==='sideR'){var li=Math.floor(a.cx/m.LANE),xr=(li+1)*m.LANE-16,yb=y1+20;d='M'+x1+','+y1+' L'+x1+','+yb+' L'+xr+','+yb+' L'+xr+','+y2+' L'+x2+','+y2;lx=(x1+xr)/2;ly=yb-6;}
       else if(e.route==='sideL'){var li2=Math.floor(a.cx/m.LANE),xl=li2*m.LANE+16,ye=y2-20;d='M'+x1+','+y1+' L'+xl+','+y1+' L'+xl+','+ye+' L'+x2+','+ye+' L'+x2+','+y2;lx=xl;ly=y1+18;}
       else if(Math.abs(x1-x2)<3){d='M'+x1+','+y1+' L'+x2+','+y2;lx=x1+9;ly=(y1+y2)/2;}
       else{var my=(y1+y2)/2;d='M'+x1+','+y1+' L'+x1+','+my+' L'+x2+','+my+' L'+x2+','+y2;lx=(x1+x2)/2;ly=my-6;}
@@ -637,9 +647,10 @@ const FLOWS={
    {kind:'proc',lane:'fin',label:'Halaman "Partner Active/Inactive" — auto-bandingkan vs Master Terminal (RchgOps)',sub:'terdaftar = Active · tidak terdaftar = kandidat non-aktif → informasikan ke admin Ops'},
    {kind:'proc',lane:'fin',label:'Lihat daftar partner Inactive',sub:'partner di RS tapi tidak terdaftar di Master Terminal → kandidat non-aktif'},
    {kind:'proc',lane:'man',label:'Kirim ke admin untuk proses inactive partner',sub:'admin update status partner di sistem sumber'},
-   {kind:'proc',lane:'fin',wf:'WF1',label:'Generate RS report + draft Berita Acara (template)',sub:'nomor surat otomatis via halaman Penomoran Dokumen',warn:'auto-generate Berita Acara = target (belum dibangun)'},
-   {kind:'proc',lane:'man',label:'Director Signing (mba Evi) → kirim ke partner'},
-   {kind:'end',lane:'man',wf:'WF2',label:'Bill Import Revenue Sharing ke Zoho'},
+   {kind:'proc',lane:'rc',wf:'WF1',label:'Generate & kirim RS report ke partner',sub:'admin.recharge.sh · fitur Generate Revenue Sharing'},
+   {kind:'dec',lane:'fin',label:'Perlu Berita Acara?',sub:'hanya untuk partner tertentu'},
+   {branch:{ya:{lbl:'Ya',lane:'fin',label:'Draft Berita Acara (template)',sub:'nomor surat otomatis via Penomoran Dokumen'},tidak:{lbl:'Tidak',end:true}}},
+   {kind:'proc',lane:'man',label:'ttd Direktur (mba Evi) → kirim ke partner',sub:'tanda tangan Berita Acara — masih manual'},
  ],
  bp:[
    {kind:'start',label:'Bukti Potong terbit (setelah pemotongan pajak)'},
