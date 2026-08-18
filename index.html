@@ -1405,7 +1405,7 @@ function impUpload(files,kind){
         var sn2=wb.SheetNames.find(function(n){var j=XLSX.utils.sheet_to_json(wb.Sheets[n],{defval:null});return j.length&&(('Est. Partner' in j[0])||('Status' in j[0]));})||wb.SheetNames[0];
         var raw=XLSX.utils.sheet_to_json(wb.Sheets[sn2],{defval:null});
         var fnSt=impStatusFromName(file.name);
-        var mapped=raw.map(function(r){return {trx_id:r['Trx ID']||r['Trx. ID']||'',borrow_date:r['Borrow Date']||'',terminal_name:r['Borrow Terminal Name']||r['Terminal']||'',est_partner:r['Est. Partner']||'',status:(String(r['Status']||r['status']||'').toLowerCase().trim()||fnSt),fee:baNum(r['Fee']),pkg:baNum(r['Rent Package Fee']||r['Fee Package']),gmv:baNum(r['GMV'])};}).filter(function(x){return x.terminal_name||x.est_partner;});
+        var mapped=raw.map(function(r){return {trx_id:r['Trx ID']||r['Trx. ID']||'',borrow_date:r['Borrow Date']||'',terminal_name:r['Borrow Terminal Name']||r['Terminal']||'',est_partner:r['Est. Partner']||'',status:(String(r['Status']||r['status']||'').toLowerCase().trim()||fnSt),fee:baNum(r['Fee']),pkg:baNum(r['Rent Package Fee']||r['Fee Package']),gmv:baNum(r['GMV']),city:String(r['City']||r['city']||'').trim(),province:String(r['Province']||r['province']||'').trim()};}).filter(function(x){return x.terminal_name||x.est_partner;});
         var seen={};window.__IMPORT.trx.forEach(function(x){if(x.trx_id)seen[x.trx_id]=1;});
         var added=0;mapped.forEach(function(x){if(x.trx_id&&seen[x.trx_id])return;if(x.trx_id)seen[x.trx_id]=1;window.__IMPORT.trx.push(x);added++;});
         window.__IMPORT.fileTrx=(window.__IMPORT.fileTrx?window.__IMPORT.fileTrx+', ':'')+file.name+' ('+added+')';
@@ -1613,9 +1613,59 @@ async function vatDownload(){var s=vatState();if(!s.data)return;if(typeof XLSX==
   }catch(e){alert('Gagal menyiapkan file: '+(e.message||e));}
   finally{if(btn){btn.disabled=false;btn.textContent=lbl0||'Download (7 sheet + VAT Recon)';}}
 }
+/* SPT PPN Manual — sisi sewa (Return/Expired/Wipe) diagregasi dari data Import (cutoff-locked). Gross=Fee, DPP=Gross/1,11, PPN=11%. */
+var VAT_SPT_STAT=['return','expired','wipe'];
+function vatImpAgg(){var s=vatState(),imp=window.__IMPORT;if(!imp||!imp.trx||!imp.trx.length)return null;
+  var per=s.period,dayM={},cityM={},statM={return:{trx:0,rev:0},expired:{trx:0,rev:0},wipe:{trx:0,rev:0}},tot={trx:0,rev:0};
+  imp.trx.forEach(function(x){if(VAT_SPT_STAT.indexOf(x.status)<0)return;var bd=String(x.borrow_date||'');if(per&&/^\d{4}-\d{2}/.test(bd)&&bd.slice(0,7)!==per)return;
+    var fee=+x.fee||0,day=(/^\d{4}-\d{2}-\d{2}/.test(bd)?bd.slice(0,10):(bd||'?')),city=x.city||'(tanpa kota)';
+    var d=dayM[day]||(dayM[day]={date:day,trx:0,total:0});d.trx++;d.total+=fee;
+    var cc=cityM[city]||(cityM[city]={city:city,trx:0,rev:0});cc.trx++;cc.rev+=fee;
+    if(statM[x.status]){statM[x.status].trx++;statM[x.status].rev+=fee;}
+    tot.trx++;tot.rev+=fee;});
+  if(!tot.trx)return {empty:true,period:per};
+  return {period:per,tot:tot,days:Object.keys(dayM).map(function(k){return dayM[k];}),cities:Object.keys(cityM).map(function(k){return cityM[k];}),stat:statM,
+    hasCity:Object.keys(cityM).some(function(k){return k!=='(tanpa kota)';})};}
+function vatImpDpp(g){var d=g/1.11;return {dpp:d,ppn:g-d};}
+function vatImpExport(){var a=vatImpAgg();if(!a||a.empty||typeof XLSX==='undefined')return;
+  var wb=XLSX.utils.book_new();
+  var h=[['Sales Report SPT PPN — Sisi Sewa (Manual/Final)'],['Periode',a.period||'—'],['Status','Return + Expired + Wipe'],['Basis','Gross=Fee · DPP=Gross/1,11 · PPN=11%'],[],['Tanggal','Transaksi','Gross','DPP','PPN']];
+  a.days.sort(function(x,y){return x.date<y.date?-1:1}).forEach(function(r){var p=vatImpDpp(r.total);h.push([r.date,r.trx,Math.round(r.total),Math.round(p.dpp),Math.round(p.ppn)]);});
+  var tp=vatImpDpp(a.tot.rev);h.push(['TOTAL',a.tot.trx,Math.round(a.tot.rev),Math.round(tp.dpp),Math.round(tp.ppn)]);
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(h),'SPT Harian');
+  var h2=[['Kota','Transaksi','Gross','DPP','PPN']];a.cities.sort(function(x,y){return y.rev-x.rev}).forEach(function(r){var p=vatImpDpp(r.rev);h2.push([r.city,r.trx,Math.round(r.rev),Math.round(p.dpp),Math.round(p.ppn)]);});
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(h2),'SPT Per Kota');
+  XLSX.writeFile(wb,'Sales_SPT_PPN_Manual_'+(a.period||'')+'.xlsx');}
 function renderVAT(){
   var s=vatState(),c=document.getElementById('content');
-  if(s.mode==='manual'){var _imp=window.__IMPORT,_itr=(_imp&&_imp.trx&&_imp.trx.length)||0;c.innerHTML='<div class="datanote" style="border-left-color:var(--brand)"><b>SPT PPN — Mode Manual (final).</b> '+(_itr?('Data Import tersedia — <b>'+_itr.toLocaleString('id-ID')+'</b> transaksi. '):'<span style="color:var(--red)">Belum ada data Import — buka <b>① Import Data</b>. </span>')+'Perhitungan SPT dari data Import (sisi sewa) <b>sedang disiapkan</b> — mode ini <b>sengaja belum membaca RPC</b> agar sumber tidak tertukar. Untuk estimasi cepat gunakan <b>Sales Report SPT PPN (Otomatis)</b>. Top up tetap dari purchase_report.</div>';return;}
+  if(s.mode==='manual'){
+    var imp=window.__IMPORT,itr=(imp&&imp.trx&&imp.trx.length)||0;
+    if(imp&&imp.period&&!s._pfix)s.period=imp.period; /* default periode ikut import; hormati bila user sudah pilih (s._pfix) */
+    var banner='<div class="datanote" style="border-left-color:var(--brand)"><b>Sales Report SPT PPN — Mode Manual (final, cutoff-locked).</b> Sisi <b>sewa</b> (Return/Expired/Wipe) dihitung dari <b>data Import</b> — bukan RPC, agar sumber tidak tertukar. <b>Top up (PPN keluaran prepaid)</b> tetap di <b>mode Otomatis</b> (dari <code>purchase_report</code>) karena tidak ikut di file import. Gross = Fee · DPP = Gross ÷ 1,11 · PPN = 11%.</div>';
+    if(!itr){c.innerHTML=banner+'<div class="datanote" style="border-left-color:var(--red)">Belum ada data Import. Buka <b>① Import Data</b> dan unggah file <b>Transaksi Rent/Return/Expired</b> dulu.</div>';return;}
+    var a=vatImpAgg();
+    var pctrl='<div class="filterbar"><label style="font-size:12px;font-weight:700;color:var(--text2)">Periode <input type="month" id="vatmP" value="'+(s.period||'')+'" style="margin-left:6px"></label><span style="font-size:11.5px;color:var(--text-dim)">Sumber: '+((imp&&imp.fileTrx)||itr+' transaksi')+'</span><span style="flex:1"></span><button class="btn2" id="vatmExp"'+(a&&!a.empty?'':' disabled')+'>Export Excel</button></div>';
+    if(!a||a.empty){c.innerHTML=banner+pctrl+'<div class="datanote">Tidak ada transaksi <b>Return/Expired/Wipe</b> untuk periode <b>'+(s.period||'—')+'</b> di data import. Ganti periode, atau pastikan file transaksi sudah benar.</div>';var pe0=document.getElementById('vatmP');if(pe0)pe0.onchange=function(){s.period=this.value;s._pfix=true;renderVAT();};return;}
+    var tp=vatImpDpp(a.tot.rev);
+    var kpi=[['Total transaksi',a.tot.trx.toLocaleString('id-ID'),'Return+Expired+Wipe',''],['Gross (Fee)',sptRp(a.tot.rev),'termasuk PPN',''],['DPP',sptRp(tp.dpp),'Gross ÷ 1,11',''],['PPN (11%)',sptRp(tp.ppn),'PPN keluaran sewa','var(--brand-deep)']].map(function(k){return '<div class="kpi"><div class="kpi-lbl">'+k[0]+'</div><div class="kpi-val" style="'+(k[3]?'--c:'+k[3]:'')+'">'+k[1]+'</div><div class="kpi-sub">'+k[2]+'</div></div>';}).join('');
+    var stRows=VAT_SPT_STAT.map(function(k){var v=a.stat[k],p=vatImpDpp(v.rev);return '<tr><td style="text-transform:capitalize">'+k+'</td><td style="text-align:right">'+v.trx.toLocaleString('id-ID')+'</td><td style="text-align:right">'+sptRp(v.rev)+'</td><td style="text-align:right">'+sptRp(p.dpp)+'</td><td style="text-align:right"><b>'+sptRp(p.ppn)+'</b></td></tr>';}).join('');
+    var stTot='<tr class="ttl"><td><b>TOTAL</b></td><td style="text-align:right"><b>'+a.tot.trx.toLocaleString('id-ID')+'</b></td><td style="text-align:right"><b>'+sptRp(a.tot.rev)+'</b></td><td style="text-align:right"><b>'+sptRp(tp.dpp)+'</b></td><td style="text-align:right"><b>'+sptRp(tp.ppn)+'</b></td></tr>';
+    var dsort=a.days.slice().sort(function(x,y){return x.date<y.date?-1:1});
+    var dRows=dsort.map(function(r){var p=vatImpDpp(r.total);return '<tr><td>'+r.date+'</td><td style="text-align:right">'+r.trx.toLocaleString('id-ID')+'</td><td style="text-align:right">'+sptRp(r.total)+'</td><td style="text-align:right">'+sptRp(p.dpp)+'</td><td style="text-align:right"><b>'+sptRp(p.ppn)+'</b></td></tr>';}).join('');
+    var cityBlock='';
+    if(a.hasCity){var csort=a.cities.slice().sort(function(x,y){return y.rev-x.rev});
+      var cRows=csort.map(function(r){var p=vatImpDpp(r.rev);return '<tr><td>'+r.city+'</td><td style="text-align:right">'+r.trx.toLocaleString('id-ID')+'</td><td style="text-align:right">'+sptRp(r.rev)+'</td><td style="text-align:right">'+sptRp(p.dpp)+'</td><td style="text-align:right"><b>'+sptRp(p.ppn)+'</b></td></tr>';}).join('');
+      cityBlock='<h3 class="spt-h">Per kota (Gross · DPP · PPN)</h3><div class="tw"><table class="wf-tbl"><thead><tr><th>Kota</th><th style="text-align:right">Transaksi</th><th style="text-align:right">Gross</th><th style="text-align:right">DPP</th><th style="text-align:right">PPN</th></tr></thead><tbody>'+cRows+'</tbody></table></div>';}
+    else cityBlock='<p style="font-size:11.5px;color:var(--text-dim);margin-top:10px">Kolom <b>City</b> tak ada di file import → rincian per-kota dilewati. (Tambahkan kolom City pada dump transaksi bila perlu.)</p>';
+    c.innerHTML=banner+pctrl
+      +'<div class="kpi-row" style="grid-template-columns:repeat(4,1fr)">'+kpi+'</div>'
+      +'<h3 class="spt-h">Per status (Gross · DPP · PPN)</h3><div class="tw"><table class="wf-tbl"><thead><tr><th>Status</th><th style="text-align:right">Transaksi</th><th style="text-align:right">Gross</th><th style="text-align:right">DPP</th><th style="text-align:right">PPN</th></tr></thead><tbody>'+stTot+stRows+'</tbody></table></div>'
+      +'<h3 class="spt-h">Ringkasan harian — '+(a.period||'')+' (Gross · DPP · PPN)</h3><div class="tw"><table class="wf-tbl"><thead><tr><th>Tanggal</th><th style="text-align:right">Transaksi</th><th style="text-align:right">Gross</th><th style="text-align:right">DPP</th><th style="text-align:right">PPN</th></tr></thead><tbody>'+stTot.replace('TOTAL','TOTAL '+(a.period||''))+dRows+'</tbody></table></div>'
+      +cityBlock;
+    var pe=document.getElementById('vatmP');if(pe)pe.onchange=function(){s.period=this.value;s._pfix=true;renderVAT();};
+    var ex=document.getElementById('vatmExp');if(ex)ex.onclick=vatImpExport;
+    return;
+  }
   if(s.data===null&&!s.loading&&!s.err)return vatLoad();
   var m=vatMan();
   function mi(k,ph){return '<input type="number" id="vm_'+k+'" value="'+(m[k]||'')+'" min="0" step="1000" placeholder="'+ph+'" style="width:130px">';}
