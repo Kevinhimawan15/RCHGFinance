@@ -1714,8 +1714,7 @@ function baState(){if(!window.__BA){var d=new Date(),pm=new Date();pm.setMonth(p
 function baTerms(){var m={},ord=[];function put(t){var k=baNorm(t.nama_partner);if(!k)return;if(!m[k]){m[k]=Object.assign({},t);ord.push(k);}else Object.assign(m[k],t);}
   BA_TERMS_SEED.forEach(put);(window.__BA_CRM||[]).forEach(put);
   var rs=window.__BA_RS||{};Object.keys(rs).forEach(function(k){if(!m[k])put({nama_partner:rs[k].partner,share_type:'percent',share_value:rs[k].share||0,is_pkp:true,_fromFile:true});});
-  /* Mode Manual: tambahkan SEMUA mitra dari RS List (success) → semua mitra finance bisa dipilih & nama match persis (total 100% dari RS List). Seed/CRM tetap menang untuk terms detail. */
-  if(baState().mode==='manual'){var imp=window.__IMPORT;if(imp&&imp.rs&&imp.rs.length){imp.rs.forEach(function(r){var nm=r['Partner Name']||r['partner_name'];if(!nm)return;var st=String(r['Status']||r['status']||'').toLowerCase();if(st&&st.indexOf('success')<0)return;var k=baNorm(nm);if(!m[k])put({nama_partner:nm,share_type:'percent',share_value:0,is_pkp:((parseFloat(String(r['Total VAT']).replace(/[^0-9.\-]/g,''))||0)>0),_fromImport:true});});}}
+  /* Daftar mitra BA = curated (seed/CRM yang butuh Berita Acara) — BUKAN semua mitra RS List. Total tetap diambil dari RS List saat generate. */
   return ord.map(function(k){return m[k];}).sort(function(a,b){return a.nama_partner.localeCompare(b.nama_partner);});}
 function baSel(){var ts=baTerms();return ts[baState().sel]||ts[0]||null;}
 function baLoad(){
@@ -1814,6 +1813,7 @@ function baRSForPartner(np){var s=baState();var up=window.__IMPORT;if(!up||!up.r
 function baFromImport(){var s=baState(),t=baSel();if(!t){s._src='';s._auto=0;s.rows=[];s._rs={has:false};return;}
   var imp=window.__IMPORT;
   if(!imp||!imp.trx||!imp.trx.length){s._src='needimport';s._auto=0;s.rows=[];s._rs={has:false};return;}
+  if(imp.period)s.period=imp.period; /* selaraskan periode BA ke periode data import (biar filter transaksi & RS List cocok, tidak tergantung tanggal mesin) */
   var np=baNorm(t.nama_partner),flat=!!(t&&t.share_type==='flat'),term={},termT={};
   /* Rincian per-terminal: proporsi dari GMV (= Fee + Deducted Fee Package) status settled (return+expired+wipe). TOTAL diambil dari RS List (resmi). */
   imp.trx.forEach(function(x){if(['return','expired','wipe'].indexOf(x.status)<0)return;var bd=String(x.borrow_date||'');if(/^\d{4}-\d{2}/.test(bd)&&bd.slice(0,7)!==s.period)return;var ep=baNorm(x.est_partner||'');if(!ep||!(ep.indexOf(np)>=0||np.indexOf(ep)>=0))return;var tn=x.terminal_name||'?';var v=(+x.gmv||0)||(+x.fee||0);term[tn]=(term[tn]||0)+v;termT[tn]=(termT[tn]||0)+1;});
