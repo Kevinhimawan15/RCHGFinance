@@ -1394,7 +1394,11 @@ function impUpload(files,kind){
     rd.onload=function(e){try{var wb=XLSX.read(new Uint8Array(e.target.result),{type:'array'});
       if(kind==='rs'){
         var sn=wb.SheetNames.find(function(n){var j=XLSX.utils.sheet_to_json(wb.Sheets[n],{defval:null});return j.length&&(('Partner Name' in j[0])||('Total Revenue' in j[0]));})||wb.SheetNames[0];
-        window.__IMPORT.rs=XLSX.utils.sheet_to_json(wb.Sheets[sn],{defval:null});window.__IMPORT.fileRs=file.name;
+        var rrows=XLSX.utils.sheet_to_json(wb.Sheets[sn],{defval:null});
+        window.__IMPORT.rs=window.__IMPORT.rs||[];
+        var seenR={};window.__IMPORT.rs.forEach(function(r){var k=String(r['Partner Name']||r['partner_name']||'').trim().toLowerCase();if(k)seenR[k]=1;});
+        var addedR=0;rrows.forEach(function(r){var k=String(r['Partner Name']||r['partner_name']||'').trim().toLowerCase();if(k&&seenR[k])return;if(k)seenR[k]=1;window.__IMPORT.rs.push(r);addedR++;});
+        window.__IMPORT.fileRs=(window.__IMPORT.fileRs?window.__IMPORT.fileRs+', ':'')+file.name+' ('+addedR+')';
       } else {
         var sn2=wb.SheetNames.find(function(n){var j=XLSX.utils.sheet_to_json(wb.Sheets[n],{defval:null});return j.length&&(('Est. Partner' in j[0])||('Status' in j[0]));})||wb.SheetNames[0];
         var raw=XLSX.utils.sheet_to_json(wb.Sheets[sn2],{defval:null});
@@ -1423,7 +1427,7 @@ function renderImport(){var c=document.getElementById('content');var imp=window.
   var trxSt=trxN?('<span style="'+okc+'">✓ '+trxN.toLocaleString('id-ID')+' transaksi</span> <span style="'+muc+'">· '+baEsc(imp.fileTrx||'')+'</span><div style="margin-top:5px;'+muc+'">Status: '+bdStr+'</div>'):'<span style="'+muc+'">Belum diupload</span>';
   var ready=(trxN>0);
   var per=(imp.period||'—');
-  c.innerHTML='<div class="datanote"><b>Mode Manual (Import)</b> — sumber angka <b>FINAL</b> terkunci cutoff. Upload 2 file export admin.recharge.sh <b>sekali per periode</b>; semua output Manual (Berita Acara, SPT PPN) memakai data ini. <b>Top up tidak perlu</b> (tetap otomatis dari RPC). Konsep: <b>KONSEP-sumber-data.md</b>.</div>'
+  c.innerHTML='<div class="datanote"><b>Mode Manual (Import)</b> — sumber angka <b>FINAL</b> terkunci cutoff. Upload export admin.recharge.sh <b>sekali per periode</b>: <b>Revenue Sharing</b> (2 file — batch A–M + N–Z) &amp; <b>Transaksi</b> (bisa terpisah per status). Semua output Manual memakai data ini. <b>Top up tidak perlu</b> (tetap otomatis dari RPC). Konsep: <b>KONSEP-sumber-data.md</b>.</div>'
    +'<div class="sec-lbl">Dua Mode Sumber Data</div>'
    +'<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px">'
      +card('#b08900','Otomatis · RPC','⚠ Estimasi','Tarik live dari <b>rent_report</b> + <b>purchase_report</b>. Cepat, tapi angka bergerak → intip cepat.')
@@ -1431,7 +1435,7 @@ function renderImport(){var c=document.getElementById('content');var imp=window.
    +'</div>'
    +'<div class="sec-lbl">Import Data (periode terdeteksi: '+per+')</div>'
    +'<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:8px">'
-     +box('#b08900','① Revenue Sharing <span style="font-weight:600;color:var(--text-dim)">(checksum)</span>',rsSt,up('rs','Upload Revenue Sharing'))
+     +box('#b08900','① Revenue Sharing <span style="font-weight:600;color:var(--text-dim)">(checksum · 2 file: A–M + N–Z)</span>',rsSt,up('rs','Upload Revenue Sharing (bisa pilih 2 file)',true))
      +box('var(--brand)','② Transaksi Rent/Return/Expired <span style="font-weight:600;color:var(--text-dim)">(sumber utama)</span>',trxSt,up('trx','Upload Transaksi (bisa pilih beberapa)',true))
    +'</div>'
    +'<div class="ba-hint" style="margin-bottom:16px"><b>File transaksi terpisah per status?</b> Pilih <b>ketiga file (rent, return, expired) sekaligus</b> di tombol Upload Transaksi — otomatis digabung (dedupe Trx ID). Status dikenali dari kolom <b>Status</b>, atau dari <b>nama file</b> bila kolomnya kosong. Bisa juga upload satu-satu (menumpuk). <br>Untuk output: <b>return</b> dipakai Berita Acara; <b>return+expired</b> untuk SPT PPN; <b>rent</b> (belum kembali) tidak dipakai. Kolom: Trx ID · Borrow Date · Borrow Terminal Name · Est. Partner · Status · Fee. Top up tetap otomatis dari RPC.</div>'
