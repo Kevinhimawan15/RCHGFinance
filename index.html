@@ -1813,7 +1813,7 @@ function baRSForPartner(np){var s=baState();var up=window.__IMPORT;if(!up||!up.r
 function baFromImport(){var s=baState(),t=baSel();if(!t){s._src='';s._auto=0;s.rows=[];s._rs={has:false};return;}
   var imp=window.__IMPORT;
   if(!imp||!imp.trx||!imp.trx.length){s._src='needimport';s._auto=0;s.rows=[];s._rs={has:false};return;}
-  if(imp.period)s.period=imp.period; /* selaraskan periode BA ke periode data import (biar filter transaksi & RS List cocok, tidak tergantung tanggal mesin) */
+  if(imp.period&&!s._pfix)s.period=imp.period; /* default periode ikut data import; TAPI hormati bila user sudah pilih manual (s._pfix) */
   var np=baNorm(t.nama_partner),flat=!!(t&&t.share_type==='flat'),term={},termT={};
   /* Rincian per-terminal: proporsi dari GMV (= Fee + Deducted Fee Package) status settled (return+expired+wipe). TOTAL diambil dari RS List (resmi). */
   imp.trx.forEach(function(x){if(['return','expired','wipe'].indexOf(x.status)<0)return;var bd=String(x.borrow_date||'');if(/^\d{4}-\d{2}/.test(bd)&&bd.slice(0,7)!==s.period)return;var ep=baNorm(x.est_partner||'');if(!ep||!(ep.indexOf(np)>=0||np.indexOf(ep)>=0))return;var tn=x.terminal_name||'?';var v=(+x.gmv||0)||(+x.fee||0);term[tn]=(term[tn]||0)+v;termT[tn]=(termT[tn]||0)+1;});
@@ -1895,7 +1895,7 @@ function baRefresh(){var c=baCompute(),no=baNomor(),has=baHasData(),s=baState();
   var dl=document.getElementById('baDlBtn');if(dl){dl.disabled=!has;dl.title=!has?'Belum ada data revenue':(s._src==='live'?'Estimasi (belum final) — untuk BA resmi gunakan file final':'');}
   var pv=document.getElementById('baPreview');if(pv)pv.innerHTML=has?baDoc():'<div class="ba-empty">'+(s._src==='loading'?'Menarik data dari sistem…':'Preview muncul setelah data revenue termuat.')+'</div>';}
 function baOnPartner(v){var s=baState();s.sel=parseInt(v)||0;s.vat=null;s.urut='';baAutoFill();renderBA();}
-function baField(k,v){var s=baState();s[k]=v;if(k==='period'){baAutoFill();renderBA();}else if(k==='out'){renderBA();}else baRefresh();}
+function baField(k,v){var s=baState();s[k]=v;if(k==='period'){s._pfix=true;baAutoFill();renderBA();}else if(k==='out'){renderBA();}else baRefresh();}
 function baDownload(){var s=baState(),t=baSel();if(s._src==='live'&&!confirm('Data ini ESTIMASI (dari rent_report, belum final & bisa berubah). Untuk BA resmi gunakan file final.\n\nLanjut unduh sebagai draft/estimasi?'))return;var kind=s.out==='report'?'Report RS':'BA';var html='<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="utf-8"><title>'+kind+'</title><style>body{font-family:Calibri,"Segoe UI",Arial,sans-serif}</style></head><body>'+baDoc()+'</body></html>';
   var blob=new Blob(['﻿'+html],{type:'application/msword'});var url=URL.createObjectURL(blob);var a=document.createElement('a');a.href=url;a.download=kind+' '+((t&&t.nama_partner)||'Partner')+' '+(s.period||'')+'.doc';document.body.appendChild(a);a.click();setTimeout(function(){document.body.removeChild(a);URL.revokeObjectURL(url);},200);}
 async function baSaveNomor(){
