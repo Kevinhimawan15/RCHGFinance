@@ -194,6 +194,25 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);-webkit-font
 /* Berita Acara page */
 .ba-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:18px}
 @media(max-width:1050px){.ba-grid{grid-template-columns:1fr}}
+.ba-pick{border:1px solid var(--border2);border-radius:12px;margin-bottom:14px;background:var(--card)}
+.ba-pick-hd{display:flex;align-items:center;gap:12px;padding:11px 15px;cursor:pointer;font-size:13px;font-weight:800;color:var(--text);user-select:none}
+.ba-pick-hd b{color:var(--brand-deep);font-size:12.5px}
+.ba-pick-sub{margin-left:auto;font-size:11px;font-weight:600;color:var(--text-dim)}
+.ba-pick.open .ba-pick-hd{border-bottom:1px solid var(--border2)}
+.ba-pick-acts{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:10px 15px 4px}
+.ba-pick-q{flex:1;min-width:180px;padding:6px 10px;border:1px solid var(--border2);border-radius:8px;font-size:12.5px;background:var(--bg);color:var(--text)}
+.ba-pt-btn{font-size:11.5px;font-weight:700;padding:5px 10px;border:1px solid var(--border2);border-radius:8px;background:var(--bg);color:var(--text2);cursor:pointer}
+.ba-pt-btn:hover{border-color:var(--brand);color:var(--brand-deep)}
+.ba-pick-list{max-height:300px;overflow:auto;padding:6px 8px;display:grid;grid-template-columns:1fr 1fr;gap:1px 14px}
+@media(max-width:900px){.ba-pick-list{grid-template-columns:1fr}}
+.ba-pick-row{display:flex;align-items:center;gap:8px;padding:5px 7px;border-radius:7px;font-size:12.5px;color:var(--text);cursor:pointer}
+.ba-pick-row:hover{background:var(--bg)}
+.ba-pick-row .nm{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ba-pick-row .amt{font-family:var(--mono);font-size:11px;color:var(--brand-deep);font-weight:700;white-space:nowrap}
+.ba-pt{font-size:9.5px;font-weight:800;padding:1px 6px;border-radius:20px;white-space:nowrap}
+.ba-pt.cur{background:var(--brand-dim);color:var(--brand-deep)}
+.ba-pt.rs{background:var(--border);color:var(--text-dim)}
+.ba-pick-foot{font-size:11px;color:var(--text-dim);padding:6px 15px 12px;line-height:1.5}
 .ba-outsel{display:inline-flex;gap:0;margin-bottom:12px;border:1px solid var(--border2);border-radius:9px;overflow:hidden}
 .ba-ot{padding:8px 15px;border:none;background:var(--surface);color:var(--text2);font-size:12.5px;font-weight:700;cursor:pointer}
 .ba-ot.on{background:var(--brand);color:#fff}
@@ -960,7 +979,7 @@ const BA_TERMS_SEED=[
  {nama_partner:'JPM Dukuh Atas',legal_name:'KSO Waskita Bersama Vision First',no_pks:'004/PKS-JPMDKA/KSO.WBVF/V/2025',share_type:'percent',share_value:50,is_pkp:true,signatory_name:'',signatory_title:''},
  {nama_partner:'Taman Literasi Blok M',legal_name:'PT Integrasi Transit Jakarta',no_pks:'003/ITJ/RENT.TEMP/V/2025 & 139/JTS/MOU/SAQ/V/2025',share_type:'percent',share_value:50,is_pkp:true,signatory_name:'',signatory_title:''},
  {nama_partner:'Skywalk Poins Square',legal_name:'KSO Inti Menara Integrasi Jakarta',no_pks:'002/SPP/KSO.IMIJ/V/2025',share_type:'percent',share_value:50,is_pkp:false,signatory_name:'',signatory_title:''},
- {nama_partner:'Metropolitan Mall Cibubur',legal_name:'PT Kembang Griya Cahaya',no_pks:'148-Add.01/KGC/MMC/MKT.RCHG/VII/2023',share_type:'flat',share_value:2000,is_pkp:true,signatory_name:'',signatory_title:''}
+ {nama_partner:'Metropolitan Mall Cibubur',legal_name:'PT Kembang Griya Cahaya',no_pks:'148-Add.01/KGC/MMC/MKT.RCHG/VII/2023',share_type:'flat',share_value:2000,is_pkp:true,signatory_name:'',signatory_title:'',aliases:['Metropolitan Mall Cileungsi 2024','Metropolitan Mall Cileungsi']}
 ];
 async function fetchMasterTerminal(force){
   if(window.__MT_ROWS&&!force)return window.__MT_ROWS;
@@ -1760,13 +1779,30 @@ var BA_MON=['','Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus
 var BA_DAY=['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
 function baIdr(n){return Math.round(n||0).toLocaleString('id-ID');}
 function baEsc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
-function baState(){if(!window.__BA){var d=new Date(),pm=new Date();pm.setMonth(pm.getMonth()-1);window.__BA={sel:0,rows:[],period:pm.toISOString().slice(0,7),tgl:d.toISOString().slice(0,10),urut:'',vat:null,_src:'',out:'ba',wht:'f42',mode:'auto'};}return window.__BA;}
+function baState(){if(!window.__BA){var d=new Date(),pm=new Date();pm.setMonth(pm.getMonth()-1);window.__BA={selKey:'',rows:[],period:pm.toISOString().slice(0,7),tgl:d.toISOString().slice(0,10),urut:'',vat:null,_src:'',out:'ba',wht:'f42',mode:'auto',pick:null,pickOpen:false};}return window.__BA;}
 function baTerms(){var m={},ord=[];function put(t){var k=baNorm(t.nama_partner);if(!k)return;if(!m[k]){m[k]=Object.assign({},t);ord.push(k);}else Object.assign(m[k],t);}
   BA_TERMS_SEED.forEach(put);(window.__BA_CRM||[]).forEach(put);
   var rs=window.__BA_RS||{};Object.keys(rs).forEach(function(k){if(!m[k])put({nama_partner:rs[k].partner,share_type:'percent',share_value:rs[k].share||0,is_pkp:true,_fromFile:true});});
   /* Daftar mitra BA = curated (seed/CRM yang butuh Berita Acara) — BUKAN semua mitra RS List. Total tetap diambil dari RS List saat generate. */
   return ord.map(function(k){return m[k];}).sort(function(a,b){return a.nama_partner.localeCompare(b.nama_partner);});}
-function baSel(){var ts=baTerms();return ts[baState().sel]||ts[0]||null;}
+/* Kandidat mitra = kurasi (seed/CRM) ∪ mitra dari RS List import → finance bisa pilih dari data partner nyata. */
+function baCandidates(){var base=baTerms(),m={},arr=[];base.forEach(function(t){var k=baNorm(t.nama_partner);if(m[k])return;m[k]=t;arr.push(t);});
+  var imp=window.__IMPORT;if(imp&&imp.rs&&imp.rs.length){imp.rs.forEach(function(r){var nm=String(r['Partner Name']||r['partner_name']||'').trim();if(!nm)return;var k=baNorm(nm);if(m[k])return;
+    var alt=baAliasMap()[k];if(alt&&alt.some(function(a){return m[a];}))return; /* nama sistem = alias mitra kurasi → jangan tampilkan ganda */
+    m[k]={nama_partner:nm,share_type:'percent',share_value:0,is_pkp:true,_fromRS:true};arr.push(m[k]);});}
+  return arr.sort(function(a,b){return a.nama_partner.localeCompare(b.nama_partner);});}
+function baCandByKey(k){var cand=baCandidates();for(var i=0;i<cand.length;i++)if(baNorm(cand[i].nama_partner)===k)return cand[i];return null;}
+/* Alias nama mitra: nama di sistem (RS List/transaksi) ≠ nama yang ditulis finance.
+   Contoh terkonfirmasi: "Metropolitan Mall Cibubur" (finance) = "Metropolitan Mall Cileungsi 2024" (sistem). */
+function baAliasMap(){if(baAliasMap._m)return baAliasMap._m;var m={};BA_TERMS_SEED.forEach(function(t){if(t.aliases&&t.aliases.length){var arr=[baNorm(t.nama_partner)].concat(t.aliases.map(baNorm));arr.forEach(function(k){m[k]=arr;});}});baAliasMap._m=m;return m;}
+function baAlts(np){var a=baAliasMap()[np];return a?a.slice():[np];}
+function baAltMatch(dataName,np){var p=baNorm(dataName);if(!p)return false;return baAlts(np).some(function(a){return a&&(p===a||p.indexOf(a)>=0||a.indexOf(p)>=0);});}
+/* pick = himpunan mitra terpilih (kontrol dropdown + batch). Default = daftar kurasi (yang butuh BA). */
+function baPick(){var s=baState();if(!s.pick){s.pick={};baTerms().forEach(function(t){s.pick[baNorm(t.nama_partner)]=true;});}return s.pick;}
+function baPickedKeys(){var p=baPick();return Object.keys(p).filter(function(k){return p[k];});}
+/* Term yang tampil di dropdown = mitra terpilih; bila kosong → semua kurasi (jaga-jaga tak pernah kosong). */
+function baVisibleTerms(){var picked=baPickedKeys();if(!picked.length)return baTerms();var set={};picked.forEach(function(k){set[k]=1;});var out=baCandidates().filter(function(t){return set[baNorm(t.nama_partner)];});return out.length?out:baTerms();}
+function baSel(){var s=baState();if(s.selKey){var t=baCandByKey(s.selKey);if(t)return t;}var vt=baVisibleTerms();return vt[0]||baTerms()[0]||null;}
 function baLoad(){
   var p1=crmRpc('get_partner_ba_terms').then(function(r){window.__BA_CRM=(r&&r.ok&&Array.isArray(r.data))?r.data:[];}).catch(function(){window.__BA_CRM=[];});
   var p2=window.__DN_ROWS?Promise.resolve():dnFetch().then(function(r){window.__DN_ROWS=(r&&r.rows)||[];}).catch(function(){window.__DN_ROWS=window.__DN_ROWS||[];});
@@ -1849,11 +1885,11 @@ function baRSForPartner(np){var s=baState();var up=window.__IMPORT;if(!up||!up.r
   function per(d){d=String(d||'');var y=d.match(/(20\d{2})/),mm=d.toLowerCase().match(/(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)/);return (y&&mm)?(y[1]+'-'+MON[mm[1]]):'';}
   function day(d){var m=String(d||'').match(/(\d{1,2})/);return m?+m[1]:0;}
   var lastDay=s.period?new Date(+s.period.slice(0,4),+s.period.slice(5,7),0).getDate():31;
-  var full=[],monthO=[],contains=null;
+  var full=[],monthO=[],contains=null,alts=baAlts(np);
   up.rs.forEach(function(r){var st=String(r['Status']||r['status']||'').toLowerCase();if(st&&st.indexOf('success')<0)return;var p=baNorm(r['Partner Name']||r['partner_name']||'');if(!p)return;
-    if(p===np){var rp=per(r['Start Date']);if(s.period&&rp&&rp!==s.period)return; /* periode beda (mis. re-run tahunan) → abaikan */
+    if(alts.indexOf(p)>=0){var rp=per(r['Start Date']);if(s.period&&rp&&rp!==s.period)return; /* periode beda (mis. re-run tahunan) → abaikan */
       if(day(r['Start Date'])===1&&day(r['EndDate'])===lastDay)full.push(r);else monthO.push(r);}
-    else if(!contains&&(p.indexOf(np)>=0||np.indexOf(p)>=0))contains=r;});
+    else if(!contains&&alts.some(function(a){return p.indexOf(a)>=0||a.indexOf(p)>=0;}))contains=r;});
   var use=full.length?full:(monthO.length?monthO:(contains?[contains]:[]));
   if(!use.length)return {has:false};
   /* dedupe baris identik (RS List sering memuat baris duplikat sama persis) → jangan dobel; baris beda (multi-kontrak asli) tetap dijumlah */
@@ -1866,7 +1902,7 @@ function baFromImport(){var s=baState(),t=baSel();if(!t){s._src='';s._auto=0;s.r
   if(imp.period&&!s._pfix)s.period=imp.period; /* default periode ikut data import; TAPI hormati bila user sudah pilih manual (s._pfix) */
   var np=baNorm(t.nama_partner),flat=!!(t&&t.share_type==='flat'),term={},termT={};
   /* Rincian per-terminal: proporsi dari GMV (= Fee + Deducted Fee Package) status settled (return+expired+wipe). TOTAL diambil dari RS List (resmi). */
-  imp.trx.forEach(function(x){if(['return','expired','wipe'].indexOf(x.status)<0)return;var bd=String(x.borrow_date||'');if(/^\d{4}-\d{2}/.test(bd)&&bd.slice(0,7)!==s.period)return;var ep=baNorm(x.est_partner||'');if(!ep||!(ep.indexOf(np)>=0||np.indexOf(ep)>=0))return;var tn=x.terminal_name||'?';var v=(+x.gmv||0)||(+x.fee||0);term[tn]=(term[tn]||0)+v;termT[tn]=(termT[tn]||0)+1;});
+  imp.trx.forEach(function(x){if(['return','expired','wipe'].indexOf(x.status)<0)return;var bd=String(x.borrow_date||'');if(/^\d{4}-\d{2}/.test(bd)&&bd.slice(0,7)!==s.period)return;if(!baAltMatch(x.est_partner,np))return;var tn=x.terminal_name||'?';var v=(+x.gmv||0)||(+x.fee||0);term[tn]=(term[tn]||0)+v;termT[tn]=(termT[tn]||0)+1;});
   s.rows=Object.keys(term).map(function(k){return {desc:k,val:String(flat?(termT[k]||0):Math.round(term[k]/1.11))};}).sort(function(a,b){return (+b.val)-(+a.val);});
   s._rs=baRSForPartner(np);
   s._src='import';s._auto=s.rows.length;s._impper=imp.period||'';}
@@ -1885,7 +1921,7 @@ function baFetchLive(){var s=baState(),t=baSel();if(!t||!s.period){s._src='';s._
   baPickFn(s.period+'-01').then(function(fn){
   return Promise.all(days.map(function(dd){var ds=s.period+'-'+dd;return dashRpc(fn,{date_from:ds,date_to:ds,statuses:['return']}).then(function(r){return r.ok?r.data:[];}).catch(function(){return [];});}));}).then(function(all){
     if(window.__BA_LIVEREQ!==ck||baState().mode==='manual')return; /* mode pindah ke manual → jangan timpa dgn RPC */
-    var term={},termT={};all.forEach(function(rows){(rows||[]).forEach(function(x){var ep=baNorm(x.est_partner||'');if(ep&&(ep.indexOf(np)>=0||np.indexOf(ep)>=0)){term[x.terminal]=(term[x.terminal]||0)+(+x.rev||0);termT[x.terminal]=(termT[x.terminal]||0)+(+x.trx||0);}});});
+    var term={},termT={};all.forEach(function(rows){(rows||[]).forEach(function(x){if(baAltMatch(x.est_partner,np)){term[x.terminal]=(term[x.terminal]||0)+(+x.rev||0);termT[x.terminal]=(termT[x.terminal]||0)+(+x.trx||0);}});});
     window.__BA_LIVE[ck]={term:term,termT:termT};
     var s2=baState(),t2=baSel();if(t2&&baNorm(t2.nama_partner)+'|'+s2.period===ck){s2.rows=baBuildRows(t2,ck);s2._src='live';s2._auto=s2.rows.length;baRefresh();}
   });}
@@ -1944,7 +1980,60 @@ function baRefresh(){var c=baCompute(),no=baNomor(),has=baHasData(),s=baState();
   var np=document.getElementById('baNoPrev');if(np)np.textContent=no.nomor;
   var dl=document.getElementById('baDlBtn');if(dl){dl.disabled=!has;dl.title=!has?'Belum ada data revenue':(s._src==='live'?'Estimasi (belum final) — untuk BA resmi gunakan file final':'');}
   var pv=document.getElementById('baPreview');if(pv)pv.innerHTML=has?baDoc():'<div class="ba-empty">'+(s._src==='loading'?'Menarik data dari sistem…':'Preview muncul setelah data revenue termuat.')+'</div>';}
-function baOnPartner(v){var s=baState();s.sel=parseInt(v)||0;s.vat=null;s.urut='';baAutoFill();renderBA();}
+function baOnPartner(v){var s=baState();s.selKey=v||'';s.vat=null;s.urut='';baAutoFill();renderBA();}
+/* ---- Kontrol pemilih mitra (multi-select) ---- */
+function baPickToggle(){var s=baState();s.pickOpen=!s.pickOpen;renderBA();}
+function baTogglePick(k,on){var p=baPick();if(on)p[k]=true;else delete p[k];
+  var vis=baPickedKeys();if(vis.length&&vis.indexOf(baState().selKey)<0){baState().selKey=vis[0];baAutoFill();}
+  renderBA();}
+function baPickAll(onlyRev){var cand=baCandidates(),p=baPick(),s=baState();cand.forEach(function(t){var k=baNorm(t.nama_partner);if(onlyRev){var rs=baRSForPartner(k);if(rs&&rs.has&&rs.shared>0)p[k]=true;else delete p[k];}else p[k]=true;});renderBA();}
+function baPickCurated(){var s=baState();s.pick={};baTerms().forEach(function(t){s.pick[baNorm(t.nama_partner)]=true;});renderBA();}
+function baPickClear(){baState().pick={};renderBA();}
+function baPickSearch(q){q=String(q||'').toLowerCase();document.querySelectorAll('#baPickList .ba-pick-row').forEach(function(r){var nm=r.getAttribute('data-nm')||'';r.style.display=(!q||nm.indexOf(q)>=0)?'':'none';});}
+function baPickerHTML(){var s=baState(),p=baPick(),cand=baCandidates(),picked=baPickedKeys();
+  var impN=(window.__IMPORT&&window.__IMPORT.rs&&window.__IMPORT.rs.length)||0;
+  var hd='<div class="ba-pick-hd" onclick="baPickToggle()"><span>'+(s.pickOpen?'▾':'▸')+' Pilih mitra untuk dropdown &amp; batch download</span><b>'+picked.length+' terpilih</b><span class="ba-pick-sub">'+cand.length+' mitra'+(impN?' · '+impN+' dari RS List import':' · import RS List untuk lihat semua mitra')+'</span></div>';
+  if(!s.pickOpen)return '<div class="ba-pick">'+hd+'</div>';
+  var rows=cand.map(function(t){var k=baNorm(t.nama_partner);var rs=baRSForPartner(k);var amt=(rs&&rs.has&&rs.shared>0)?('Rp '+baIdr(rs.shared)):'';
+    var tag=t._fromRS?'<span class="ba-pt rs">RS List</span>':'<span class="ba-pt cur">Kurasi</span>';
+    return '<label class="ba-pick-row" data-nm="'+baEsc(t.nama_partner.toLowerCase())+'"><input type="checkbox" data-k="'+baEsc(k)+'" onchange="baTogglePick(\''+baEsc(k).replace(/'/g,"\\'")+'\',this.checked)"'+(p[k]?' checked':'')+'><span class="nm">'+baEsc(t.nama_partner)+'</span>'+tag+'<span class="amt">'+amt+'</span></label>';}).join('');
+  var acts='<div class="ba-pick-acts"><input type="text" placeholder="Cari mitra…" oninput="baPickSearch(this.value)" class="ba-pick-q">'
+   +'<button class="ba-pt-btn" onclick="baPickCurated()">Reset ke kurasi</button>'
+   +(impN?'<button class="ba-pt-btn" onclick="baPickAll(true)">Semua yang ada revenue</button>':'')
+   +'<button class="ba-pt-btn" onclick="baPickAll(false)">Pilih semua</button>'
+   +'<button class="ba-pt-btn" onclick="baPickClear()">Kosongkan</button></div>';
+  return '<div class="ba-pick open">'+hd+acts+'<div class="ba-pick-list" id="baPickList">'+rows+'</div><div class="ba-pick-foot">Yang dicentang menentukan isi <b>dropdown</b> di bawah &amp; menjadi target <b>Download terpilih (.zip)</b>. Mitra tanpa revenue di periode terpilih otomatis dilewati saat batch.</div></div>';}
+/* ---- ZIP (store, tanpa kompresi) — bundel banyak .doc jadi 1 unduhan ---- */
+function _zipCrc32(bytes){var t=_zipCrc32.t;if(!t){t=_zipCrc32.t=[];for(var n=0;n<256;n++){var c=n;for(var k=0;k<8;k++)c=(c&1)?(0xEDB88320^(c>>>1)):(c>>>1);t[n]=c>>>0;}}var crc=0xFFFFFFFF;for(var i=0;i<bytes.length;i++)crc=t[(crc^bytes[i])&0xFF]^(crc>>>8);return (crc^0xFFFFFFFF)>>>0;}
+function zipStore(files){var enc=new TextEncoder();function u16(n){return [n&255,(n>>8)&255];}function u32(n){return [n&255,(n>>8)&255,(n>>16)&255,(n>>24)&255];}
+  var TIME=0,DATE=((2026-1980)<<9)|(1<<5)|1;var chunks=[],central=[],offset=0;
+  files.forEach(function(f){var nameB=enc.encode(f.name),dataB=enc.encode(f.data),crc=_zipCrc32(dataB);
+    var lh=[].concat(u32(0x04034b50),u16(20),u16(0x0800),u16(0),u16(TIME),u16(DATE),u32(crc),u32(dataB.length),u32(dataB.length),u16(nameB.length),u16(0));
+    var lhB=new Uint8Array(lh);chunks.push(lhB,nameB,dataB);
+    var ch=[].concat(u32(0x02014b50),u16(20),u16(20),u16(0x0800),u16(0),u16(TIME),u16(DATE),u32(crc),u32(dataB.length),u32(dataB.length),u16(nameB.length),u16(0),u16(0),u16(0),u16(0),u32(0),u32(offset));
+    central.push({head:new Uint8Array(ch),name:nameB});offset+=lhB.length+nameB.length+dataB.length;});
+  var cdStart=offset,cdSize=0;central.forEach(function(c){chunks.push(c.head,c.name);cdSize+=c.head.length+c.name.length;});
+  var eocd=[].concat(u32(0x06054b50),u16(0),u16(0),u16(files.length),u16(files.length),u32(cdSize),u32(cdStart),u16(0));
+  chunks.push(new Uint8Array(eocd));return new Blob(chunks,{type:'application/zip'});}
+function baSafeName(s){return String(s||'').replace(/[\\\/:*?"<>|]+/g,'-').replace(/\s+/g,' ').trim();}
+function baDocHtml(){var kind=baState().out==='report'?'Report RS':'BA';return '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="utf-8"><title>'+kind+'</title><style>body{font-family:Calibri,"Segoe UI",Arial,sans-serif}</style></head><body>'+baDoc()+'</body></html>';}
+function baBatchDownload(){var s=baState();if(typeof XLSX==='undefined'&&typeof TextEncoder==='undefined')return;
+  var keys=baPickedKeys();if(!keys.length){alert('Belum ada mitra terpilih. Centang mitra di panel "Pilih mitra".');return;}
+  if(s.mode!=='manual'&&!confirm('Batch download optimal di mode MANUAL (data final dari Import).\nDi mode Otomatis hanya mitra yang datanya sudah termuat yang akan terisi.\n\nLanjutkan?'))return;
+  var save={selKey:s.selKey,rows:s.rows,urut:s.urut,_rs:s._rs,_src:s._src,_auto:s._auto};
+  var cand=baCandidates(),byKey={};cand.forEach(function(t){byKey[baNorm(t.nama_partner)]=t;});
+  keys.sort(function(a,b){var an=(byKey[a]&&byKey[a].nama_partner)||a,bn=(byKey[b]&&byKey[b].nama_partner)||b;return an.localeCompare(bn);});
+  var baseUrut=baNomor().urut,kind=s.out==='report'?'Report RS':'BA',files=[],made=0,skipped=[];
+  keys.forEach(function(k){var t=byKey[k];if(!t)return;s.selKey=k;s.urut=(s.out==='report')?'':(baseUrut+made);baAutoFill();var c=baCompute();
+    if(!(c.shared>0)){skipped.push(t.nama_partner);return;}
+    files.push({name:baSafeName(kind+' '+t.nama_partner+' '+(s.period||''))+'.doc',data:baDocHtml()});made++;});
+  s.selKey=save.selKey;s.rows=save.rows;s.urut=save.urut;s._rs=save._rs;s._src=save._src;s._auto=save._auto;baAutoFill();
+  if(!files.length){alert('Tidak ada mitra terpilih yang punya data revenue untuk periode '+(s.period||'')+'.\n'+(skipped.length?('Dilewati (tanpa revenue): '+skipped.length+' mitra.'):''));renderBA();return;}
+  var blob=zipStore(files),url=URL.createObjectURL(blob),a=document.createElement('a');
+  a.href=url;a.download=baSafeName((s.out==='report'?'Report RS':'Berita Acara')+' '+(s.period||'')+' ('+files.length+' mitra)')+'.zip';
+  document.body.appendChild(a);a.click();setTimeout(function(){document.body.removeChild(a);URL.revokeObjectURL(url);},300);
+  renderBA();
+  if(skipped.length)setTimeout(function(){alert(files.length+' dokumen diunduh (.zip).\nDilewati karena tanpa revenue di periode ini: '+skipped.length+' mitra'+(skipped.length<=12?':\n- '+skipped.join('\n- '):'.'));},60);}
 function baField(k,v){var s=baState();s[k]=v;if(k==='period'){s._pfix=true;baAutoFill();renderBA();}else if(k==='out'){renderBA();}else baRefresh();}
 function baDownload(){var s=baState(),t=baSel();if(s._src==='live'&&!confirm('Data ini ESTIMASI (dari rent_report, belum final & bisa berubah). Untuk BA resmi gunakan file final.\n\nLanjut unduh sebagai draft/estimasi?'))return;var kind=s.out==='report'?'Report RS':'BA';var html='<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="utf-8"><title>'+kind+'</title><style>body{font-family:Calibri,"Segoe UI",Arial,sans-serif}</style></head><body>'+baDoc()+'</body></html>';
   var blob=new Blob(['﻿'+html],{type:'application/msword'});var url=URL.createObjectURL(blob);var a=document.createElement('a');a.href=url;a.download=kind+' '+((t&&t.nama_partner)||'Partner')+' '+(s.period||'')+'.doc';document.body.appendChild(a);a.click();setTimeout(function(){document.body.removeChild(a);URL.revokeObjectURL(url);},200);}
@@ -1992,11 +2081,15 @@ function renderBA(){
   if(!window.__BA_LOADED){c.innerHTML='<div class="datanote">Memuat data mitra (CRM) & penomoran…</div>';baLoad().then(function(){window.__BA_LOADED=true;renderBA();});return;}
   if(!s.period){var d=new Date();d.setMonth(d.getMonth()-1);s.period=d.toISOString().slice(0,7);}
   if(!s.tgl)s.tgl=new Date().toISOString().slice(0,10);
-  var ts=baTerms();if(s.sel>=ts.length)s.sel=0;var t=baSel();
+  var ts=baVisibleTerms();
+  /* normalisasi selKey: bila kosong / tak ada di daftar tampil → pilih pertama */
+  if(!s.selKey||!ts.some(function(x){return baNorm(x.nama_partner)===s.selKey;}))s.selKey=ts.length?baNorm(ts[0].nama_partner):'';
+  var t=baSel();
   if(s._modeShown!==s.mode){s._modeShown=s.mode;baAutoFill();}
   var crmN=(window.__BA_CRM||[]).length;
   var srcChip=crmN?'<span class="ba-chip ok">Terms dari CRM · '+crmN+' mitra</span>':'<span class="ba-chip warn">Terms dari seed (CRM belum tersambung — jalankan rchgcrm-add-ba-terms.sql)</span>';
-  var opts=ts.map(function(x,i){return '<option value="'+i+'"'+(i===s.sel?' selected':'')+'>'+baEsc(x.nama_partner)+'</option>';}).join('');
+  var opts=ts.map(function(x){var k=baNorm(x.nama_partner);return '<option value="'+baEsc(k)+'"'+(k===s.selKey?' selected':'')+'>'+baEsc(x.nama_partner)+'</option>';}).join('');
+  var pickerHTML=baPickerHTML();
   var skema=t?(t.share_type==='flat'?('Flat Rp '+baIdr(t.share_value)+'/trx'):(t.share_value+'%')):'—';
   var pkpTxt=t?(t.is_pkp!==false?'PKP (kena VAT 11%)':'non-PKP (tanpa VAT)'):'—';
   var anom=(t&&/TIM|Ismail/i.test(t.nama_partner))?'<div class="ba-note">Catatan: BA TIM Juni 2026 memakai Total 750.000 (override, bukan hasil 30% per baris) — konfirmasi finance bila perlu.</div>':'';
@@ -2004,6 +2097,7 @@ function renderBA(){
   var outToggle='<div class="ba-outsel"><button class="ba-ot'+(!isRep?' on':'')+'" onclick="baField(\'out\',\'ba\')">Berita Acara (PDF signed)</button><button class="ba-ot'+(isRep?' on':'')+'" onclick="baField(\'out\',\'report\')">Report Revenue Share</button></div>';
   var whtSel='<div class="ba-f"><label>WHT (PPh)</label><select onchange="baField(\'wht\',this.value)"><option value="f42"'+(s.wht!=='pph23'?' selected':'')+'>Final 4(2) — 10%</option><option value="pph23"'+(s.wht==='pph23'?' selected':'')+'>PPh 23 — 2%</option></select></div>';
   c.innerHTML=baJourneyHTML()+'<div class="datanote" style="margin-bottom:12px">Pilih output (Berita Acara / Report Revenue Share) + mitra & periode → revenue per terminal ditarik otomatis dari sistem, VAT/WHT/Nett dihitung otomatis. Sumber data ke depan lewat Upload & Combine. '+srcChip+'</div>'
+   +pickerHTML
    +'<div class="ba-grid"><div class="ba-left">'
    +outToggle
    +'<div class="ba-ctrl">'
@@ -2017,7 +2111,7 @@ function renderBA(){
    +'<div class="ba-meta">Skema: <b>'+skema+'</b> · Status: <b>'+pkpTxt+'</b> · PKS: '+baEsc((t&&t.no_pks)||'—')+'</div>'+anom
    +'<div class="ba-src" id="baSrc"></div>'
    +'<div class="ba-sum" id="baSum"></div>'
-   +'<div class="ba-actions">'+(isRep?'<div class="ba-no"></div>':'<div class="ba-no">Nomor surat: <b id="baNoPrev"></b></div>')+'<div style="display:flex;gap:8px">'+(isRep?'':'<button class="btn2-outline" id="baSaveBtn" onclick="baSaveNomor()">Simpan nomor ke Penomoran</button>')+'<button class="btn2" id="baDlBtn" onclick="baDownload()">Download .doc</button></div></div>'
+   +'<div class="ba-actions">'+(isRep?'<div class="ba-no"></div>':'<div class="ba-no">Nomor surat: <b id="baNoPrev"></b></div>')+'<div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end">'+(isRep?'':'<button class="btn2-outline" id="baSaveBtn" onclick="baSaveNomor()">Simpan nomor ke Penomoran</button>')+'<button class="btn2-outline" id="baBatchBtn" onclick="baBatchDownload()">⬇ Download terpilih ('+baPickedKeys().length+') — .zip</button><button class="btn2" id="baDlBtn" onclick="baDownload()">Download .doc</button></div></div>'
    +'</div><div class="ba-right"><div class="ba-prev-hd">Preview — '+(isRep?'Report Revenue Share':'Berita Acara')+'</div><div id="baPreview" class="ba-prev"></div></div></div>';
   baRefresh();
 }
