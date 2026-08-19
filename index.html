@@ -2165,8 +2165,7 @@ async function badSaveCurrent(){var t=baSel();if(!t){alert('Pilih mitra dulu.');
   var rec=arr.filter(function(x){return x.key===key;})[0];
   if(rec&&rec.status==='sent'&&!confirm('BA ini sudah Terkirim. Perbarui akan mengembalikan ke Draft. Lanjut?'))return;
   var nomor=rec&&rec.nomor,btn=document.getElementById('baTrackBtn');
-  /* Pakai ulang nomor yang SUDAH ada: dari record tracker, atau dari s.urut bila user sudah klik "Simpan nomor ke Penomoran" / isi manual → hindari alokasi ganda. */
-  if(!nomor&&s.urut!==''&&s.urut!=null&&String(s.urut).match(/^\d+$/))nomor=baNomor().nomor;
+  /* Reuse HANYA dari record tracker mitra ini (rec.nomor). JANGAN pakai s.urut global — ia milik mitra sebelumnya → bikin nomor dobel. */
   /* Nomor BARU → dialokasi ATOMIK di server (allocate_doc_number: INSERT..ON CONFLICT last_no+1, row-lock) → UNIK & terdaftar, anti-tabrakan walau lintas app/berbarengan. */
   if(!nomor){
     if(btn){btn.disabled=true;btn.textContent='Mengalokasi nomor…';}
@@ -2185,6 +2184,38 @@ async function badSaveCurrent(){var t=baSel();if(!t){alert('Pilih mitra dulu.');
   else{rec=Object.assign({id:'BA'+Date.now().toString(36),status:'draft',createdAt:badNowISO()},snap);arr.unshift(rec);}
   badSaveAll(arr);badDbUpsert(rec);if(typeof baRefresh==='function')baRefresh();
   alert('✓ Tersimpan ke Status Tracker.\n'+t.nama_partner+' · '+(s.period||'')+'\nNomor surat (terdaftar & unik): '+nomor+'\nNett '+baIdr(c.nett));}
+/* Simpan SEKALIGUS semua mitra terpilih ke Tracker — tiap mitra dapat nomor ATOMIK unik sendiri. */
+async function badSaveBatch(){var s=baState();
+  if(s.out==='report'){alert('Status tracker untuk dokumen Berita Acara. Ganti output ke "Berita Acara" dulu.');return;}
+  var keys=baPickedKeys();if(!keys.length){alert('Belum ada mitra terpilih. Centang mitra di panel "Pilih mitra".');return;}
+  if(s.mode!=='manual'&&!confirm('Batch simpan optimal di mode MANUAL (data final dari Import).\nDi mode Otomatis hanya mitra yang datanya sudah termuat yang tersimpan.\n\nLanjutkan?'))return;
+  var cand=baCandidates(),byKey={};cand.forEach(function(t){byKey[baNorm(t.nama_partner)]=t;});
+  keys.sort(function(a,b){var an=(byKey[a]&&byKey[a].nama_partner)||a,bn=(byKey[b]&&byKey[b].nama_partner)||b;return an.localeCompare(bn);});
+  var arr=badList(),saveSel=s.selKey,saveUrut=s.urut,tgl=s.tgl||new Date().toISOString().slice(0,10);
+  var saved=0,reused=0,skipped=[],pushes=[],btn=document.getElementById('baBatchTrackBtn');
+  if(btn){btn.disabled=true;btn.textContent='Menyimpan…';}
+  for(var i=0;i<keys.length;i++){var k=keys[i],t=byKey[k];if(!t)continue;
+    s.selKey=k;s.urut='';baAutoFill();var c=baCompute();
+    if(!(c.shared>0)){skipped.push(t.nama_partner);continue;}
+    var bkey=badKey(t.nama_partner,s.period,'ba'),rec=arr.filter(function(x){return x.key===bkey;})[0];
+    var nomor=rec&&rec.nomor;
+    if(!nomor){var per=baPeriode(),issued='Berita Acara Settlement — '+t.nama_partner+' (Rev.Sharing '+per.title+')';
+      var res=await finRpc('allocate_doc_number',{p_jenis:'DLL',p_dept:'FIN',p_issued_to:issued,p_pic:'Finance',p_tanggal:tgl});
+      var row=(res.ok&&Array.isArray(res.data))?res.data[0]:null;
+      if(!row||!row.nomor_surat){skipped.push(t.nama_partner+' (gagal nomor)');continue;}
+      nomor=row.nomor_surat;
+      if(window.__DN_ROWS)window.__DN_ROWS.push({tanggal:tgl,pic:'Finance',issued_to:issued,no_urut:row.no_urut,perusahaan:'JTS',jenis:'DLL',departemen:'FIN',bulan:row.bulan_romawi,tahun:row.tahun,nomor_surat:nomor});
+    }else reused++;
+    var mu=String(nomor).match(/^(\d+)/);if(mu)s.urut=parseInt(mu[1]);
+    var snap={key:bkey,partner:t.nama_partner,legal:t.legal_name||'',period:s.period,nomor:nomor,shared:c.shared,vat:c.vat,wht:c.wht,nett:c.nett,html:baDocHtml(),email:(t.email||''),updatedAt:badNowISO()};
+    if(rec)Object.assign(rec,snap,{status:'draft'});else{rec=Object.assign({id:'BA'+Date.now().toString(36)+i,status:'draft',createdAt:badNowISO()},snap);arr.unshift(rec);}
+    pushes.push(badDbUpsert(rec));saved++;
+  }
+  s.selKey=saveSel;s.urut=saveUrut;badSaveAll(arr);baAutoFill();
+  try{await Promise.all(pushes);}catch(e){}
+  if(btn){btn.disabled=false;btn.textContent='→ Simpan terpilih ke Tracker ('+baPickedKeys().length+')';}
+  renderBA();
+  alert('✓ '+saved+' BA disimpan ke Tracker — nomor UNIK masing-masing.'+(reused?'\n('+reused+' pakai nomor lama yang sudah ada)':'')+(skipped.length?'\nDilewati '+skipped.length+' (tanpa revenue/gagal): '+(skipped.length<=10?skipped.join(', '):skipped.length+' mitra'):''));}
 function badDownload(id){var r=badGet(id);if(!r)return;var blob=new Blob(['﻿'+r.html],{type:'application/msword'});var url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=baSafeName('BA '+r.partner+' '+(r.period||''))+'.doc';document.body.appendChild(a);a.click();setTimeout(function(){document.body.removeChild(a);URL.revokeObjectURL(url);},200);}
 function badDel(id){if(!confirm('Hapus record ini dari tracker?'))return;badSaveAll(badList().filter(function(x){return x.id!==id;}));renderBAStatus();}
 /* --- Tanda tangan / approval Direktur (in-app, opsi B) --- */
@@ -2290,7 +2321,7 @@ function renderBA(){
    +'<div class="ba-meta">Skema: <b>'+skema+'</b> · Status: <b>'+pkpTxt+'</b> · PKS: '+baEsc((t&&t.no_pks)||'—')+'</div>'+anom
    +'<div class="ba-src" id="baSrc"></div>'
    +'<div class="ba-sum" id="baSum"></div>'
-   +'<div class="ba-actions">'+(isRep?'<div class="ba-no"></div>':'<div class="ba-no">Nomor surat: <b id="baNoPrev"></b></div>')+'<div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end">'+(isRep?'':'<button class="btn2-outline" id="baSaveBtn" onclick="baSaveNomor()">Simpan nomor ke Penomoran</button>')+(isRep?'':'<button class="btn2-outline" id="baTrackBtn" onclick="badSaveCurrent()">→ Simpan ke Tracker</button>')+'<button class="btn2-outline" id="baBatchBtn" onclick="baBatchDownload()">⬇ Download terpilih ('+baPickedKeys().length+') — .zip</button><button class="btn2" id="baDlBtn" onclick="baDownload()">Download .doc</button></div></div>'
+   +'<div class="ba-actions">'+(isRep?'<div class="ba-no"></div>':'<div class="ba-no">Nomor surat: <b id="baNoPrev"></b></div>')+'<div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end">'+(isRep?'':'<button class="btn2-outline" id="baSaveBtn" onclick="baSaveNomor()">Simpan nomor ke Penomoran</button>')+(isRep?'':'<button class="btn2-outline" id="baTrackBtn" onclick="badSaveCurrent()">→ Simpan ke Tracker</button>')+(isRep?'':'<button class="btn2-outline" id="baBatchTrackBtn" onclick="badSaveBatch()">→ Simpan terpilih ke Tracker ('+baPickedKeys().length+')</button>')+'<button class="btn2-outline" id="baBatchBtn" onclick="baBatchDownload()">⬇ Download terpilih ('+baPickedKeys().length+') — .zip</button><button class="btn2" id="baDlBtn" onclick="baDownload()">Download .doc</button></div></div>'
    +'</div><div class="ba-right"><div class="ba-prev-hd">Preview — '+(isRep?'Report Revenue Share':'Berita Acara')+'</div><div id="baPreview" class="ba-prev"></div></div></div>';
   baRefresh();
 }
