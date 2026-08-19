@@ -512,7 +512,10 @@ th.sortable.on .ar{opacity:1;color:var(--brand-deep)}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
 /* ---------- Supabase connection (anon key; state persistence + fallback ke localStorage) ---------- */
-const SB={url:'https://vsjubakbykciictjtxvc.supabase.co',key:'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZzanViYWtieWtjaWljdGp0eHZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUyMTg5MTEsImV4cCI6MjEwMDc5NDkxMX0.mfIMj33FTgpeJGrfmDDp7VCC0Qpv3AoGGg_tBPiQkE4'};
+/* KONSOLIDASI: semua objek Finance (penomoran, doc_numbering, fin_state, ba_docs) pindah ke project CRM.
+   SB kini menunjuk ke project CRM (yemyraxemgtgutxdmwji). Project Finance lama (vsjubakbykciictjtxvc) dipensiunkan.
+   Rollback: kembalikan url+key ke project Finance lama bila perlu. */
+const SB={url:'https://yemyraxemgtgutxdmwji.supabase.co',key:'sb_publishable_GiZiashFmdMyV6lkLBqqCg_1dAr_0XP'};
 function sbHead(extra){return Object.assign({apikey:SB.key,Authorization:'Bearer '+SB.key,'Content-Type':'application/json'},extra||{});}
 function dbChip(txt,cls){var el=document.getElementById('dbChip');if(el){el.textContent=txt;el.className='chip '+(cls||'');}}
 async function sbPull(){
@@ -1862,7 +1865,7 @@ function baPickedKeys(){var p=baPick();return Object.keys(p).filter(function(k){
 function baVisibleTerms(){var picked=baPickedKeys();if(!picked.length)return baTerms();var set={};picked.forEach(function(k){set[k]=1;});var out=baCandidates().filter(function(t){return set[baNorm(t.nama_partner)];});return out.length?out:baTerms();}
 function baSel(){var s=baState();if(s.selKey){var t=baCandByKey(s.selKey);if(t)return t;}var vt=baVisibleTerms();return vt[0]||baTerms()[0]||null;}
 function baLoad(){
-  var p1=crmRpc('get_partner_ba_terms').then(function(r){window.__BA_CRM=(r&&r.ok&&Array.isArray(r.data))?r.data:[];}).catch(function(){window.__BA_CRM=[];});
+  var p1=crmRpc('get_partner_ba_terms').then(function(r){window.__BA_CRM_OK=!!(r&&r.ok);window.__BA_CRM=(r&&r.ok&&Array.isArray(r.data))?r.data:[];}).catch(function(){window.__BA_CRM_OK=false;window.__BA_CRM=[];});
   var p2=window.__DN_ROWS?Promise.resolve():dnFetch().then(function(r){window.__DN_ROWS=(r&&r.rows)||[];}).catch(function(){window.__DN_ROWS=window.__DN_ROWS||[];});
   return Promise.all([p1,p2]);
 }
@@ -2155,15 +2158,33 @@ function badGet(id){return badList().filter(function(x){return x.id===id;})[0];}
 function badNowISO(){return new Date().toISOString();}
 function badFmtDate(iso){if(!iso)return '—';var d=new Date(iso);return d.getDate()+' '+(BA_MON[d.getMonth()+1]||'')+' '+d.getFullYear();}
 /* Simpan BA dari state generator saat ini → record Draft di tracker */
-function badSaveCurrent(){var t=baSel();if(!t){alert('Pilih mitra dulu.');return;}var s=baState(),c=baCompute();
+async function badSaveCurrent(){var t=baSel();if(!t){alert('Pilih mitra dulu.');return;}var s=baState(),c=baCompute();
   if(!(c.shared>0)){alert('Belum ada data revenue untuk mitra ini — tidak bisa disimpan.');return;}
   if(s.out==='report'){alert('Status tracker untuk dokumen Berita Acara. Ganti output ke "Berita Acara" dulu.');return;}
-  var no=baNomor(),arr=badList(),key=badKey(t.nama_partner,s.period,'ba');
-  var snap={key:key,partner:t.nama_partner,legal:t.legal_name||'',period:s.period,nomor:no.nomor,shared:c.shared,vat:c.vat,wht:c.wht,nett:c.nett,html:baDocHtml(),email:(t.email||''),updatedAt:badNowISO()};
+  var arr=badList(),key=badKey(t.nama_partner,s.period,'ba');
   var rec=arr.filter(function(x){return x.key===key;})[0];
-  if(rec){if(rec.status==='sent'&&!confirm('BA ini sudah Terkirim. Perbarui akan mengembalikan ke Draft. Lanjut?'))return;Object.assign(rec,snap,{status:'draft'});}
-  else arr.unshift(Object.assign({id:'BA'+Date.now().toString(36),status:'draft',createdAt:badNowISO()},snap));
-  badSaveAll(arr);alert('✓ Tersimpan ke Status Tracker sebagai Draft.\n'+t.nama_partner+' · '+(s.period||'')+' · Nett '+baIdr(c.nett));}
+  if(rec&&rec.status==='sent'&&!confirm('BA ini sudah Terkirim. Perbarui akan mengembalikan ke Draft. Lanjut?'))return;
+  var nomor=rec&&rec.nomor,btn=document.getElementById('baTrackBtn');
+  /* Pakai ulang nomor yang SUDAH ada: dari record tracker, atau dari s.urut bila user sudah klik "Simpan nomor ke Penomoran" / isi manual → hindari alokasi ganda. */
+  if(!nomor&&s.urut!==''&&s.urut!=null&&String(s.urut).match(/^\d+$/))nomor=baNomor().nomor;
+  /* Nomor BARU → dialokasi ATOMIK di server (allocate_doc_number: INSERT..ON CONFLICT last_no+1, row-lock) → UNIK & terdaftar, anti-tabrakan walau lintas app/berbarengan. */
+  if(!nomor){
+    if(btn){btn.disabled=true;btn.textContent='Mengalokasi nomor…';}
+    var per=baPeriode(),tgl=s.tgl||new Date().toISOString().slice(0,10);
+    var issued='Berita Acara Settlement — '+t.nama_partner+' (Rev.Sharing '+per.title+')';
+    var res=await finRpc('allocate_doc_number',{p_jenis:'DLL',p_dept:'FIN',p_issued_to:issued,p_pic:'Finance',p_tanggal:tgl});
+    if(btn){btn.disabled=false;btn.textContent='→ Simpan ke Tracker';}
+    var row=(res.ok&&Array.isArray(res.data))?res.data[0]:null;
+    if(!row||!row.nomor_surat){alert('Gagal mengalokasi nomor surat (anti-tabrakan): '+(res.err||(res.data&&(res.data.message||res.data.hint))||('HTTP '+res.status))+'\nPastikan allocate_doc_number sudah ada di Supabase.');return;}
+    nomor=row.nomor_surat;
+    if(window.__DN_ROWS)window.__DN_ROWS.push({tanggal:tgl,pic:'Finance',issued_to:issued,no_urut:row.no_urut,perusahaan:'JTS',jenis:'DLL',departemen:'FIN',bulan:row.bulan_romawi,tahun:row.tahun,nomor_surat:nomor});
+  }
+  var mu=String(nomor).match(/^(\d+)/);if(mu)s.urut=parseInt(mu[1]); /* sinkron preview + baDocHtml pakai nomor final */
+  var snap={key:key,partner:t.nama_partner,legal:t.legal_name||'',period:s.period,nomor:nomor,shared:c.shared,vat:c.vat,wht:c.wht,nett:c.nett,html:baDocHtml(),email:(t.email||''),updatedAt:badNowISO()};
+  if(rec)Object.assign(rec,snap,{status:'draft'});
+  else{rec=Object.assign({id:'BA'+Date.now().toString(36),status:'draft',createdAt:badNowISO()},snap);arr.unshift(rec);}
+  badSaveAll(arr);badDbUpsert(rec);if(typeof baRefresh==='function')baRefresh();
+  alert('✓ Tersimpan ke Status Tracker.\n'+t.nama_partner+' · '+(s.period||'')+'\nNomor surat (terdaftar & unik): '+nomor+'\nNett '+baIdr(c.nett));}
 function badDownload(id){var r=badGet(id);if(!r)return;var blob=new Blob(['﻿'+r.html],{type:'application/msword'});var url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=baSafeName('BA '+r.partner+' '+(r.period||''))+'.doc';document.body.appendChild(a);a.click();setTimeout(function(){document.body.removeChild(a);URL.revokeObjectURL(url);},200);}
 function badDel(id){if(!confirm('Hapus record ini dari tracker?'))return;badSaveAll(badList().filter(function(x){return x.id!==id;}));renderBAStatus();}
 /* --- Tanda tangan / approval Direktur (in-app, opsi B) --- */
@@ -2243,7 +2264,9 @@ function renderBA(){
   var t=baSel();
   if(s._modeShown!==s.mode){s._modeShown=s.mode;baAutoFill();}
   var crmN=(window.__BA_CRM||[]).length;
-  var srcChip=crmN?'<span class="ba-chip ok">Terms dari CRM · '+crmN+' mitra</span>':'<span class="ba-chip warn">Terms dari seed (CRM belum tersambung — jalankan rchgcrm-add-ba-terms.sql)</span>';
+  var srcChip=crmN?('<span class="ba-chip ok">Terms dari CRM · '+crmN+' mitra</span>')
+    :(window.__BA_CRM_OK?'<span class="ba-chip warn">CRM tersambung ✓ · belum ada terms mitra di CRM (isi di Master Account). Sementara pakai seed 9 mitra.</span>'
+      :'<span class="ba-chip warn">Terms pakai seed — CRM belum tersambung (cek koneksi / RLS get_partner_ba_terms).</span>');
   var opts=ts.map(function(x){var k=baNorm(x.nama_partner);return '<option value="'+baEsc(k)+'"'+(k===s.selKey?' selected':'')+'>'+baEsc(x.nama_partner)+'</option>';}).join('');
   var pickerHTML=baPickerHTML();
   var skema=t?(t.share_type==='flat'?('Flat Rp '+baIdr(t.share_value)+'/trx'):(t.share_value+'%')):'—';
