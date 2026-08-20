@@ -1509,7 +1509,7 @@ function impUpload(files,kind){
           /* GMV SELALU DIHITUNG ULANG = Fee + Deducted Fee Package (fondasi; kolom GMV mentah tak selalu ada rumusnya — kadang = Discount).
              Fallback ke GMV mentah hanya bila komponen (Fee & Deducted Fee Package) kosong/tak ada di file. */
           var _gmv=_fee+_dfp; if(!_gmv&&_gmvRaw)_gmv=_gmvRaw;
-          return {trx_id:r['Trx ID']||r['Trx. ID']||'',borrow_date:r['Borrow Date']||'',terminal_name:r['Borrow Terminal Name']||r['Terminal']||'',est_partner:r['Est. Partner']||'',status:(String(r['Status']||r['status']||'').toLowerCase().trim()||fnSt),fee:_fee,pkg:baNum(r['Rent Package Fee']||r['Fee Package']),dfp:_dfp,gmv:_gmv,city:String(r['City']||r['city']||'').trim(),province:String(r['Province']||r['province']||'').trim()};
+          return {trx_id:r['Trx ID']||r['Trx. ID']||'',borrow_date:r['Borrow Date']||'',terminal_name:r['Borrow Terminal Name']||r['Terminal']||'',est_partner:r['Est. Partner']||'',status:(String(r['Status']||r['status']||'').toLowerCase().trim()||fnSt),pm:String(r['Payment Method']||r['payment_method']||'').toLowerCase().trim(),fee:_fee,pkg:baNum(r['Rent Package Fee']||r['Fee Package']),dfp:_dfp,gmv:_gmv,city:String(r['City']||r['city']||'').trim(),province:String(r['Province']||r['province']||'').trim()};
         }).filter(function(x){return x.terminal_name||x.est_partner;});
         var seen={};window.__IMPORT.trx.forEach(function(x){if(x.trx_id)seen[x.trx_id]=1;});
         var added=0;mapped.forEach(function(x){if(x.trx_id&&seen[x.trx_id])return;if(x.trx_id)seen[x.trx_id]=1;window.__IMPORT.trx.push(x);added++;});
@@ -1645,6 +1645,12 @@ function vatLoad(){var s=vatState(),tok=++s.tok;s.loading=true;s.err=null;render
 var VAT_ADMFEE=2500; /* adm fee flat per transaksi = selisih "Final Amount Fee 1" − "Final Amount" di purchase_report */
 var VAT_FRANCHISEE=['cikarang groove','kawisari cafe & eatery - 2nd floor']; /* terminal franchisee (back-out VAT) */
 /* Franchisee back-out dari DATA IMPORT (Trans-Rent cutoff), bukan RPC. Σ Fee & Σ Deducted Fee Package terminal franchisee, status settled. */
+/* Regular (sewa balance) dari IMPORT cutoff: Σ Fee, payment_method=balance, status settled. Match finance sheet "Regular". */
+function vatRegularFromImport(){var imp=window.__IMPORT;if(!imp||!imp.trx||!imp.trx.length)return null;var s=vatState();
+  var nrm=function(x){return String(x||'').toLowerCase().trim();},fee=0,n=0;
+  imp.trx.forEach(function(x){if(['return','expired','wipe'].indexOf(x.status)<0)return;var bd=String(x.borrow_date||'');if(s.period&&/^\d{4}-\d{2}/.test(bd)&&bd.slice(0,7)!==s.period)return;
+    if(nrm(x.pm)!=='balance')return;fee+=(+x.fee||0);n++;});
+  return {fee:fee,n:n};}
 function vatFranchiseeFromImport(){var imp=window.__IMPORT;if(!imp||!imp.trx||!imp.trx.length)return null;var s=vatState();
   var nrm=function(x){return String(x||'').toLowerCase().trim();},fee=0,dfp=0,n=0;
   imp.trx.forEach(function(x){if(['return','expired','wipe'].indexOf(x.status)<0)return;var bd=String(x.borrow_date||'');if(s.period&&/^\d{4}-\d{2}/.test(bd)&&bd.slice(0,7)!==s.period)return;
@@ -1652,7 +1658,9 @@ function vatFranchiseeFromImport(){var imp=window.__IMPORT;if(!imp||!imp.trx||!i
   return {fee:fee,dfp:dfp,n:n};}
 function vatCompute(){var s=vatState(),tu=s.data.tu,m=vatMan();
   var pen=Number(m.pen)||0;
-  var reg=Number(s.data.regFee)||0; /* B18 total Regular = Σ Fee sewa balance (get_rent_fee) */
+  /* B18 "Sales Balance" = DPP sewa balance = Σ Fee balance ÷ 1,11 (match finance: Regular!H29979 = H29978/1.11).
+     Sumber Fee: IMPORT cutoff bila ada (lengkap), else RPC live (estimasi). */
+  var rImp=vatRegularFromImport();var regGross=rImp?rImp.fee:(Number(s.data.regFee)||0);var reg=regGross/1.11;s._regSrc=rImp?'import':'rpc';
   /* Franchisee back-out: dari IMPORT (Trans-Rent) bila ada; bila belum import → 0 (RPC tidak dipakai lagi, sesuai keputusan finance). */
   var fImp=vatFranchiseeFromImport(); var fFee=fImp?fImp.fee:0, fDfp=fImp?fImp.dfp:0; var fbal=fFee; s._frSrc=fImp?'import':'none';
   /* MATCH FILE FINANCE (VAT Recon): PB-Top Up/Package = GROSS = "Final Amount Fee 1" (= Final Amount + Rp 2.500/trx) = tu.balance / tu.package apa adanya.
@@ -1681,7 +1689,7 @@ function vatReconAoa(){var s=vatState(),x=vatCompute(),lbl=vatMonthLbl(s.period)
     ['(-/-) DPP Sales Belong Franchisee '].concat(x.r8,[x.f8]),
     ['(-/-) VAT Sales Belong Franchisee '].concat(x.r9,[x.f9]),
     [],[],[],[],['Rekon Selisih '+lbl],
-    ['Customer Prepayment (COA)',x.cp],['',x.b16],['',x.b17],['',x.b18],['',x.b19],['',x.b20],
+    ['Customer Prepayment (COA)',x.cp],['PPN Balance',x.b16],['PPN package',x.b17],['Sales Balance',x.b18],['Sales Package',x.b19],['',x.b20],
     ['Selisih '+lbl,x.b21],['',x.b22]];}
 /* Terapkan format Accounting (tanpa simbol) ke semua sel angka di worksheet: positif #,##0 · negatif (#,##0) · nol "-" */
 function vatFmtAccounting(ws){var fmt='_(* #,##0_);_(* (#,##0);_(* "-"_);_(@_)';if(!ws||!ws['!ref'])return ws;var rg=XLSX.utils.decode_range(ws['!ref']);for(var R=rg.s.r;R<=rg.e.r;R++){for(var C=rg.s.c;C<=rg.e.c;C++){var cell=ws[XLSX.utils.encode_cell({r:R,c:C})];if(cell&&cell.t==='n')cell.z=fmt;}}return ws;}
@@ -2003,7 +2011,7 @@ function baCompute(){var s=baState(),t=baSel();var flat=!!(t&&t.share_type==='fl
 function baPeriode(){var s=baState();var p=s.period||new Date().toISOString().slice(0,7);var y=+p.slice(0,4),m=+p.slice(5,7);var last=new Date(y,m,0).getDate();return {y:y,m:m,title:(BA_MON[m]||'').toUpperCase()+' '+y,range:'01 - '+last+' '+(BA_MON[m]||'')+' '+y};}
 function baTgl(){var s=baState();var tgl=s.tgl||new Date().toISOString().slice(0,10);var d=new Date(tgl+'T00:00:00');return {hari:BA_DAY[d.getDay()],lng:d.getDate()+' '+(BA_MON[d.getMonth()+1]||'')+' '+d.getFullYear(),yr:d.getFullYear(),mo:d.getMonth()+1};}
 function baNomor(){var s=baState(),tg=baTgl();var urut=(s.urut===''||s.urut==null)?dnNextUrut(tg.yr):(parseInt(s.urut)||dnNextUrut(tg.yr));return {urut:urut,nomor:dnBuildNomor(urut,'DLL','FIN',DN_ROMAN[tg.mo]||'',tg.yr)};}
-var BA_DOC_CSS=".ba-doc{color:#1f2a24;font-size:12px;width:720px;max-width:100%;margin:0 auto;background:#fff;padding:6px;line-height:1.4}.ba-doc .kop{text-align:right;font-size:10.5px;color:#333;margin-bottom:16px}.ba-doc .kop b{font-size:12px}.ba-doc h1{text-align:center;font-size:13px;font-weight:bold;margin:1px 0}.ba-doc .no{text-align:center;font-weight:bold;margin:4px 0 14px}.ba-doc p{margin:6px 0;text-align:justify}.ba-doc table.calc{width:100%;border-collapse:collapse;margin:8px 0;font-size:11px}.ba-doc table.calc th{background:#2b3a4a;color:#fff;padding:5px 6px;text-align:left;font-size:10.5px}.ba-doc table.calc td{border-bottom:1px solid #e1e6ea;padding:4px 6px}.ba-doc .rr{text-align:right}.ba-doc .cc{text-align:center}.ba-doc .b{font-weight:bold}.ba-doc table.sign{width:100%;margin-top:24px}.ba-doc table.sign td{width:50%;vertical-align:top}.ba-doc .sp{height:50px}";
+var BA_DOC_CSS=".ba-doc{color:#1f2a24;font-size:12px;width:720px;max-width:100%;margin:0 auto;background:#fff;padding:6px;line-height:1.4}.ba-doc .kop{text-align:right;font-size:10.5px;color:#333;margin-bottom:16px}.ba-doc .kop b{font-size:12px}.ba-doc h1{text-align:center;font-size:13px;font-weight:bold;margin:1px 0}.ba-doc .no{text-align:center;font-weight:bold;margin:4px 0 14px}.ba-doc p{margin:6px 0;text-align:justify}.ba-doc table.calc{width:100%;border-collapse:collapse;margin:8px 0;font-size:11px}.ba-doc table.calc th{background:#2b3a4a;color:#fff;padding:5px 6px;text-align:left;font-size:10.5px}.ba-doc table.calc td{border-bottom:1px solid #e1e6ea;padding:4px 6px}.ba-doc .rr{text-align:right}.ba-doc .cc{text-align:center}.ba-doc .b{font-weight:bold}.ba-doc table.sign{width:100%;margin-top:24px}.ba-doc table.sign td{width:50%;vertical-align:top}.ba-doc table.sign td.sp{height:90px;vertical-align:bottom}.ba-doc .ba-esign{line-height:0;white-space:nowrap}";
 function baDoc(){
   var s=baState(),c=baCompute(),t=c.t,per=baPeriode(),tg=baTgl();
   var mitra=t?(t.legal_name||t.nama_partner):'',lokasi=t?t.nama_partner:'',pks=t?(t.no_pks||''):'';
@@ -2020,7 +2028,7 @@ function baDoc(){
   if(s.out==='report'){
     return '<style>'+BA_DOC_CSS+'</style><div class="ba-doc">'+kop+calc
      +'<div class="rr" style="margin-top:16px">Jakarta, '+tg.lng+'</div>'
-     +'<table class="sign"><tr><td class="b">'+baEsc(mitra)+',</td><td class="b">ReCharge,</td></tr><tr><td class="sp"></td><td class="sp"></td></tr>'
+     +'<table class="sign"><tr><td class="b">'+baEsc(mitra)+',</td><td class="b">ReCharge,</td></tr><tr><td class="sp"></td><td class="sp sp-sign"></td></tr>'
      +'<tr><td class="b">'+baEsc(t&&t.signatory_name||'')+'<br><span style="font-weight:normal">'+baEsc(t&&t.signatory_title||'')+'</span></td><td class="b">Evi Damayanti<br><span style="font-weight:normal">Direktur</span></td></tr></table></div>';
   }
   var no=baNomor();
@@ -2031,7 +2039,7 @@ function baDoc(){
    +'<p>Untuk perhitungan bagi hasil sebagai berikut:</p>'
    +calc
    +'<p>Demikian berita acara kami buat dan untuk selanjutnya agar dapat diproses untuk pembuatan invoice dan faktur pajak sesuai dengan nilai yang sudah kami informasikan. Atas perhatian dan kerjasamanya kami ucapkan terima kasih.</p>'
-   +'<table class="sign"><tr><td class="b">PT Jalan Terus Saja</td><td class="b">'+baEsc(mitra)+'</td></tr><tr><td class="sp"></td><td class="sp"></td></tr>'
+   +'<table class="sign"><tr><td class="b">PT Jalan Terus Saja</td><td class="b">'+baEsc(mitra)+'</td></tr><tr><td class="sp sp-sign"></td><td class="sp"></td></tr>'
    +'<tr><td class="b">Evi Damayanti<br><span style="font-weight:normal">Direktur</span></td><td class="b">'+baEsc(t&&t.signatory_name||'')+'<br><span style="font-weight:normal">'+baEsc(t&&t.signatory_title||'')+'</span></td></tr></table></div>';
 }
 function baHasData(){return baState().rows.some(function(r){return (parseFloat(String(r.val).replace(/[^0-9.\-]/g,''))||0)>0;});}
