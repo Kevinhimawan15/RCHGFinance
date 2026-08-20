@@ -869,6 +869,26 @@ function progReset(){if(!confirm('Kembalikan semua status progress ke nilai awal
 function progPct(c){var w=0;c.items.forEach(function(it,i){w+=progStatus(c.key,i)/2;});return c.items.length?Math.round(w/c.items.length*100):0;}
 function progDoneN(c){var d=0;c.items.forEach(function(it,i){if(progStatus(c.key,i)===2)d++;});return d;}
 function progBar(pct,h){return '<div style="background:var(--border);border-radius:20px;height:'+(h||10)+'px;overflow:hidden"><div style="width:'+pct+'%;height:100%;background:linear-gradient(90deg,var(--brand),var(--brand-deep));border-radius:20px;transition:width .3s"></div></div>';}
+function progExportPDF(){
+  var allItems=0,allW=0;PROGRESS.forEach(function(cs){allItems+=cs.items.length;cs.items.forEach(function(it,i){allW+=progStatus(cs.key,i)/2;});});
+  var overall=allItems?Math.round(allW/allItems*100):0,doneAll=PROGRESS.reduce(function(n,cs){return n+progDoneN(cs);},0);
+  var COL=['#8a8f98','#b08900','#1c7a44'],LBL=['Belum','Sebagian','Selesai'],BG=['#f3f4f6','#fff4e0','#e9f6ee'];
+  function bar(p){return '<div style="background:#e5e7eb;border-radius:20px;height:10px;overflow:hidden;margin:6px 0 4px"><div style="width:'+p+'%;height:100%;background:#4a8f3c"></div></div>';}
+  var cards=PROGRESS.map(function(cs,ci){var pct=progPct(cs);
+    var items=cs.items.map(function(it,i){var st=progStatus(cs.key,i);
+      return '<tr><td style="padding:3px 8px;white-space:nowrap;vertical-align:top"><span style="font-size:9px;font-weight:700;padding:2px 7px;border-radius:20px;background:'+BG[st]+';color:'+COL[st]+'">'+LBL[st]+'</span></td><td style="padding:3px 8px;font-size:11px;color:'+(st===2?'#666':'#111')+'">'+it[0]+'</td></tr>';}).join('');
+    return '<div style="border:1px solid #ddd;border-radius:10px;padding:12px 14px;margin-bottom:12px;page-break-inside:avoid">'
+      +'<div style="display:flex;align-items:baseline;gap:8px"><b style="font-size:11px;color:#2f6b4f">CASE '+(ci+1)+'</b><b style="font-size:13px">'+cs.name+'</b><span style="font-size:10px;color:#888">· '+cs.sub+'</span><span style="flex:1"></span><b style="font-size:16px;color:#2f6b4f">'+pct+'%</b></div>'
+      +bar(pct)+'<div style="font-size:10px;color:#888;margin-bottom:4px">'+progDoneN(cs)+' / '+cs.items.length+' milestone selesai</div>'
+      +'<table style="width:100%;border-collapse:collapse">'+items+'</table></div>';}).join('');
+  var today=new Date().toLocaleDateString('id-ID',{day:'numeric',month:'long',year:'numeric'});
+  var html='<!doctype html><html><head><meta charset="utf-8"><title>Progress Project RchgFinance</title></head><body style="font-family:Arial,Helvetica,sans-serif;color:#111;max-width:760px;margin:0 auto;padding:24px">'
+    +'<div style="display:flex;align-items:baseline;justify-content:space-between;border-bottom:2px solid #2f6b4f;padding-bottom:8px;margin-bottom:14px"><div><b style="font-size:20px">Progress Project — RchgFinance</b><div style="font-size:11px;color:#666">Persentase per Case · '+today+'</div></div><div style="text-align:right"><div style="font-size:32px;font-weight:800;color:#2f6b4f">'+overall+'%</div><div style="font-size:10px;color:#888">'+doneAll+' / '+allItems+' milestone</div></div></div>'
+    +bar(overall)+'<div style="margin-top:14px">'+cards+'</div>'
+    +'<div style="font-size:9px;color:#aaa;margin-top:16px;border-top:1px solid #eee;padding-top:8px">Selesai = 100% · Sebagian = 50% · Belum = 0%. Data-grounded: mencerminkan yang benar-benar dibangun &amp; terverifikasi.</div></body></html>';
+  var w=window.open('','_blank');if(!w){alert('Popup diblokir — izinkan popup untuk export PDF.');return;}
+  w.document.open();w.document.write(html);w.document.close();setTimeout(function(){try{w.focus();w.print();}catch(e){}},350);
+}
 function renderProgress(){var c=document.getElementById('content');
   var allItems=0,allW=0;PROGRESS.forEach(function(cs){allItems+=cs.items.length;cs.items.forEach(function(it,i){allW+=progStatus(cs.key,i)/2;});});
   var overall=allItems?Math.round(allW/allItems*100):0;
@@ -889,7 +909,7 @@ function renderProgress(){var c=document.getElementById('content');
       +'<div style="font-size:11px;color:var(--text-dim);margin-bottom:4px">'+progDoneN(cs)+' / '+cs.items.length+' milestone selesai</div>'
       +items+'</div>';
   }).join('');
-  var foot='<div style="display:flex;justify-content:flex-end;margin-top:4px"><button class="btn2-outline" onclick="progReset()">Reset ke status awal</button></div>';
+  var foot='<div style="display:flex;justify-content:flex-end;gap:8px;margin-top:4px"><button class="btn2-outline" onclick="progReset()">Reset ke status awal</button><button class="btn2" onclick="progExportPDF()">⬇ Export PDF</button></div>';
   c.innerHTML=head+top+cards+foot;}
 
 function overviewHTML(){
@@ -1497,8 +1517,12 @@ function impUpload(files,kind){
         var sn=wb.SheetNames.find(function(n){var j=XLSX.utils.sheet_to_json(wb.Sheets[n],{defval:null});return j.length&&(('Partner Name' in j[0])||('Total Revenue' in j[0]));})||wb.SheetNames[0];
         var rrows=XLSX.utils.sheet_to_json(wb.Sheets[sn],{defval:null});
         window.__IMPORT.rs=window.__IMPORT.rs||[];
-        var seenR={};window.__IMPORT.rs.forEach(function(r){var k=String(r['Partner Name']||r['partner_name']||'').trim().toLowerCase();if(k)seenR[k]=1;});
-        var addedR=0;rrows.forEach(function(r){var k=String(r['Partner Name']||r['partner_name']||'').trim().toLowerCase();if(k&&seenR[k])return;if(k)seenR[k]=1;window.__IMPORT.rs.push(r);addedR++;});
+        /* Dedup by SIGNATURE lengkap (partner+periode+nilai), BUKAN cuma nama — 1 mitra bisa punya
+           beberapa baris beda periode (mis. bulan-penuh 01-31 vs re-run 1 hari) di file A-M & N-Z.
+           Buang hanya baris identik; biarkan baRSForPartner memilih baris bulan-penuh yang benar. */
+        var _sig=function(r){return [String(r['Partner Name']||r['partner_name']||'').trim().toLowerCase(),String(r['Start Date']||''),String(r['EndDate']||r['End Date']||''),String(r['Total Revenue']||''),String(r['Total']||'')].join('|');};
+        var seenR={};window.__IMPORT.rs.forEach(function(r){seenR[_sig(r)]=1;});
+        var addedR=0;rrows.forEach(function(r){var k=_sig(r);if(seenR[k])return;seenR[k]=1;window.__IMPORT.rs.push(r);addedR++;});
         window.__IMPORT.fileRs=(window.__IMPORT.fileRs?window.__IMPORT.fileRs+', ':'')+file.name+' ('+addedR+')';
       } else {
         var sn2=wb.SheetNames.find(function(n){var j=XLSX.utils.sheet_to_json(wb.Sheets[n],{defval:null});return j.length&&(('Est. Partner' in j[0])||('Status' in j[0]));})||wb.SheetNames[0];
